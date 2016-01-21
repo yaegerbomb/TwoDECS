@@ -15,7 +15,7 @@ namespace TwoDECS.Engine
         COMPONENT_DISPLAY = 1 << 1,
         COMPONENT_HEALTH = 1 << 2,
         COMPONENT_POSITION = 1 << 3,
-        COMPONENT_SPEED = 1 << 4,
+        COMPONENT_VELOCITY = 1 << 4,
         COMPONENT_PLAYERINPUT = 1 << 5,
         COMPONENT_CONTAINER = 1 << 6,
         COMPONENT_TIMER = 1 << 7,
@@ -24,23 +24,28 @@ namespace TwoDECS.Engine
         COMPONENT_MOUSEINPUT = 1 << 10,
         COMPONENT_ACTIVE = 1 << 11,
         COMPONENT_OWNER = 1 << 12,
-        COMPONENT_AI = 1 << 13
+        COMPONENT_AI = 1 << 13,
+        COMPONENT_ACCELERATION = 1 << 14,
+        COMPONENT_BLOCK = 1 << 15,
+        COMPONENT_DEBUG = 1 << 16
     }
 
     public struct ComponentMasks
     {
         #region player components
-        public const Component Player = Component.COMPONENT_DIRECTION | Component.COMPONENT_DISPLAY | Component.COMPONENT_HEALTH | Component.COMPONENT_POSITION | Component.COMPONENT_SPEED | Component.COMPONENT_PLAYERINPUT | Component.COMPONENT_CONTAINER | Component.COMPONENT_AABB | Component.COMPONENT_DAMAGE;
+        public const Component Player = Component.COMPONENT_DIRECTION | Component.COMPONENT_DISPLAY | Component.COMPONENT_HEALTH | Component.COMPONENT_POSITION | Component.COMPONENT_VELOCITY | Component.COMPONENT_PLAYERINPUT | Component.COMPONENT_CONTAINER | Component.COMPONENT_AABB | Component.COMPONENT_DAMAGE | Component.COMPONENT_ACCELERATION;
         public const Component PlayerInput = Component.COMPONENT_POSITION | Component.COMPONENT_PLAYERINPUT;
         #endregion
 
         #region enemy components
-        public const Component Enemy = Component.COMPONENT_DIRECTION | Component.COMPONENT_DISPLAY | Component.COMPONENT_HEALTH | Component.COMPONENT_POSITION | Component.COMPONENT_SPEED | Component.COMPONENT_AABB | Component.COMPONENT_DAMAGE | Component.COMPONENT_AI;
+        public const Component Enemy = Component.COMPONENT_DIRECTION | Component.COMPONENT_DISPLAY | Component.COMPONENT_HEALTH | Component.COMPONENT_POSITION | Component.COMPONENT_VELOCITY | Component.COMPONENT_AABB | Component.COMPONENT_DAMAGE | Component.COMPONENT_AI | Component.COMPONENT_ACCELERATION;
         #endregion
 
 
-        public const Component Projectile = Component.COMPONENT_DIRECTION | Component.COMPONENT_DISPLAY | Component.COMPONENT_POSITION | Component.COMPONENT_SPEED | Component.COMPONENT_AABB | Component.COMPONENT_ACTIVE | Component.COMPONENT_OWNER | Component.COMPONENT_DAMAGE;
+        public const Component Projectile = Component.COMPONENT_DIRECTION | Component.COMPONENT_DISPLAY | Component.COMPONENT_POSITION | Component.COMPONENT_VELOCITY | Component.COMPONENT_AABB | Component.COMPONENT_ACTIVE | Component.COMPONENT_OWNER | Component.COMPONENT_DAMAGE;
         public const Component Weapon = Component.COMPONENT_DIRECTION | Component.COMPONENT_DISPLAY | Component.COMPONENT_POSITION | Component.COMPONENT_TIMER | Component.COMPONENT_CONTAINER | Component.COMPONENT_AABB | Component.COMPONENT_MOUSEINPUT | Component.COMPONENT_ACTIVE | Component.COMPONENT_OWNER | Component.COMPONENT_DAMAGE;
+
+        public const Component LevelObjects = Component.COMPONENT_DISPLAY | Component.COMPONENT_POSITION | Component.COMPONENT_AABB | Component.COMPONENT_BLOCK;
 
         public const Component Drawable = Component.COMPONENT_DIRECTION | Component.COMPONENT_DISPLAY | Component.COMPONENT_POSITION;
     }
@@ -53,11 +58,12 @@ namespace TwoDECS.Engine
         public Dictionary<Guid, DisplayComponent> DisplayComponents { get; set; }
         public Dictionary<Guid, HealthComponent> HealthComponents { get; set; }
         public Dictionary<Guid, PositionComponent> PositionComponents { get; set; }
-        public Dictionary<Guid, SpeedComponent> SpeedComponents { get; set; }
+        public Dictionary<Guid, VelocityComponent> VelocityComponents { get; set; }
         public Dictionary<Guid, ContainerComponent> ContainerComponents { get; set; }
         public Dictionary<Guid, TimerComponent> TimerComponents { get; set; }
         public Dictionary<Guid, DamageComponent> DamageComponents { get; set; }
-        public Dictionary<Guid, OwnerComponent> OwnerComponents { get; set; }
+        public Dictionary<Guid, AccelerationComponent> AccelerationComponents { get; set; }
+        public Dictionary<Guid, AIComponent> AIComponents { get; set; }
 
         public PlayingState()
         {
@@ -67,11 +73,12 @@ namespace TwoDECS.Engine
             DisplayComponents = new Dictionary<Guid, DisplayComponent>();
             HealthComponents = new Dictionary<Guid, HealthComponent>();
             PositionComponents = new Dictionary<Guid, PositionComponent>();
-            SpeedComponents = new Dictionary<Guid, SpeedComponent>();
+            VelocityComponents = new Dictionary<Guid, VelocityComponent>();
             ContainerComponents = new Dictionary<Guid, ContainerComponent>();
             TimerComponents = new Dictionary<Guid, TimerComponent>();
             DamageComponents = new Dictionary<Guid, DamageComponent>();
-            OwnerComponents = new Dictionary<Guid, OwnerComponent>();
+            AccelerationComponents = new Dictionary<Guid, AccelerationComponent>();
+            AIComponents = new Dictionary<Guid, AIComponent>();
         }        
 
         public Guid CreateEntity()
@@ -91,7 +98,7 @@ namespace TwoDECS.Engine
                 DisplayComponents.Remove(id);
                 HealthComponents.Remove(id);
                 PositionComponents.Remove(id);
-                SpeedComponents.Remove(id);
+                VelocityComponents.Remove(id);
             }
         }
     }

@@ -12,6 +12,13 @@ namespace TwoDECS.Engine.Systems
 {
     public static class PlayerInputSystem
     {
+        public static float TendToZero(float val, float amount)
+        {
+            if (val > 0f && (val -= amount) < 0f) return 0f;
+            if (val < 0f && (val += amount) > 0f) return 0f;
+            return val;
+        }
+
         public static void HandlePlayerMovement(PlayingState playingState, GraphicsDeviceManager graphics, GameTime gameTime, KeyboardState previousKeyboardState, 
             MouseState previousMouseState, GamePadState previousGamepadState, FollowCamera followCam, TileMap tileMap, LevelCollisionDetection levelCollisionDetection)
         {
@@ -24,14 +31,16 @@ namespace TwoDECS.Engine.Systems
                 Vector2 position = positionComponent.Position;
                 Rectangle destination = positionComponent.Destination;
 
-                float playerMoveSpeed = playingState.SpeedComponents[id].Speed;
+                VelocityComponent velocityComponent = playingState.VelocityComponents[id];
+
+                AccelerationComponent accelerationComponent = playingState.AccelerationComponents[id];
 
                 #region gamepad controls
                 GamePadState currentGamePadState = GamePad.GetState(PlayerIndex.One);
 
-                position.X += currentGamePadState.ThumbSticks.Left.X * playerMoveSpeed;
-                position.Y -= currentGamePadState.ThumbSticks.Left.Y * playerMoveSpeed;
-                previousGamepadState = currentGamePadState;
+                //position.X += currentGamePadState.ThumbSticks.Left.X * playerMoveSpeed;
+                //position.Y -= currentGamePadState.ThumbSticks.Left.Y * playerMoveSpeed;
+                //previousGamepadState = currentGamePadState;
                 #endregion
 
 
@@ -39,24 +48,37 @@ namespace TwoDECS.Engine.Systems
                 KeyboardState CurrentKeyboardState = Keyboard.GetState();
                 if (CurrentKeyboardState.IsKeyDown(Keys.Left) || CurrentKeyboardState.IsKeyDown(Keys.A) || currentGamePadState.DPad.Left == ButtonState.Pressed)
                 {
+                    velocityComponent.xVelocity -= accelerationComponent.xAcceleration;
+                    velocityComponent.xVelocity = MathHelper.Clamp(velocityComponent.xVelocity, -1 * velocityComponent.xTerminalVelocity, 0);
 
-                    position.X -= playerMoveSpeed;
+
+                    position.X += velocityComponent.xVelocity;
                     position = levelCollisionDetection.CheckWallCollision(position, Direction.Left);
                 }
 
-
-
                 if (CurrentKeyboardState.IsKeyDown(Keys.Right) || CurrentKeyboardState.IsKeyDown(Keys.D) || currentGamePadState.DPad.Right == ButtonState.Pressed)
                 {
-                    position.X += playerMoveSpeed;
+                    velocityComponent.xVelocity += accelerationComponent.xAcceleration;
+                    velocityComponent.xVelocity = MathHelper.Clamp(velocityComponent.xVelocity, 0, velocityComponent.xTerminalVelocity);
+
+
+                    position.X += velocityComponent.xVelocity;
                     position = levelCollisionDetection.CheckWallCollision(position, Direction.Right);
                 }
+
+                //move player x axis
 
 
 
                 if (CurrentKeyboardState.IsKeyDown(Keys.Up) || CurrentKeyboardState.IsKeyDown(Keys.W) || currentGamePadState.DPad.Up == ButtonState.Pressed)
                 {
-                    position.Y -= playerMoveSpeed;
+
+                    velocityComponent.yVelocity -= accelerationComponent.yAcceleration;
+                    velocityComponent.yVelocity  = MathHelper.Clamp(velocityComponent.yVelocity, -1 * velocityComponent.yTerminalVelocity, 0 );
+
+                    position.Y += velocityComponent.yVelocity;
+
+
                     position = levelCollisionDetection.CheckWallCollision(position, Direction.Up);
                 }
 
@@ -64,8 +86,20 @@ namespace TwoDECS.Engine.Systems
 
                 if (CurrentKeyboardState.IsKeyDown(Keys.Down) || CurrentKeyboardState.IsKeyDown(Keys.S) || currentGamePadState.DPad.Down == ButtonState.Pressed)
                 {
-                    position.Y += playerMoveSpeed;
+                    velocityComponent.yVelocity += accelerationComponent.yAcceleration;
+                    velocityComponent.yVelocity = MathHelper.Clamp(velocityComponent.yVelocity, 0, velocityComponent.yTerminalVelocity);
+                    position.Y += velocityComponent.yVelocity;
+
                     position = levelCollisionDetection.CheckWallCollision(position, Direction.Down);
+                }
+
+                if (CurrentKeyboardState.IsKeyUp(Keys.Down) && CurrentKeyboardState.IsKeyUp(Keys.S) && CurrentKeyboardState.IsKeyUp(Keys.Up) && CurrentKeyboardState.IsKeyUp(Keys.W))
+                {
+                    velocityComponent.yVelocity = 0;
+                }
+                if (CurrentKeyboardState.IsKeyUp(Keys.Left) && CurrentKeyboardState.IsKeyUp(Keys.A) && CurrentKeyboardState.IsKeyUp(Keys.D) && CurrentKeyboardState.IsKeyUp(Keys.Right))
+                {
+                    velocityComponent.xVelocity = 0;
                 }
 
                 previousKeyboardState = CurrentKeyboardState;
@@ -88,31 +122,31 @@ namespace TwoDECS.Engine.Systems
                 directionComponent.Direction = (float)Math.Atan2((double)direction.Y, (double)direction.X);
 
 
-                if (currentMouseState.LeftButton == ButtonState.Pressed)
-                {
-                    List<Guid> weaponEntities = playingState.Entities.Where(x => (x.ComponentFlags & ComponentMasks.Weapon) == ComponentMasks.Weapon).Select(x => x.ID).ToList();
-                    foreach (Guid wid in weaponEntities)
-                    {
+                //if (currentMouseState.LeftButton == ButtonState.Pressed)
+                //{
+                //    List<Guid> weaponEntities = playingState.Entities.Where(x => (x.ComponentFlags & ComponentMasks.Weapon) == ComponentMasks.Weapon).Select(x => x.ID).ToList();
+                //    foreach (Guid wid in weaponEntities)
+                //    {
 
-                        if (playingState.OwnerComponents.ContainsKey(wid))
-                        {
-                            OwnerComponent ownerComponent = playingState.OwnerComponents[wid];
-                            if (ownerComponent.OwnerID == id)
-                            {
-                                Guid projectileId = playingState.CreateEntity();
-                                playingState.Entities.Where(x => x.ID == projectileId).First().ComponentFlags = ComponentMasks.Projectile;
+                //        if (playingState.OwnerComponents.ContainsKey(wid))
+                //        {
+                //            OwnerComponent ownerComponent = playingState.OwnerComponents[wid];
+                //            if (ownerComponent.OwnerID == id)
+                //            {
+                //                Guid projectileId = playingState.CreateEntity();
+                //                playingState.Entities.Where(x => x.ID == projectileId).First().ComponentFlags = ComponentMasks.Projectile;
 
 
-                                playingState.DirectionComponents[projectileId] = new DirectionComponent() { Direction = directionComponent.Direction };
-                                playingState.DisplayComponents[projectileId] = new DisplayComponent() { Source = new Rectangle(21, 504, destination.Width, destination.Height) };
-                                playingState.SpeedComponents[projectileId] = new SpeedComponent() { Speed = 15f };
-                                playingState.PositionComponents[projectileId] = new PositionComponent() { Position = position, Destination = new Rectangle((int)position.X, (int)position.Y, destination.Width, destination.Height) };
-                                playingState.DamageComponents[projectileId] = new DamageComponent() { Damage = 10 };
-                                playingState.OwnerComponents[projectileId] = new OwnerComponent() { OwnerID = wid };
-                            }
-                        }
-                    }
-                }
+                //                playingState.DirectionComponents[projectileId] = new DirectionComponent() { Direction = directionComponent.Direction };
+                //                playingState.DisplayComponents[projectileId] = new DisplayComponent() { Source = new Rectangle(21, 504, destination.Width, destination.Height) };
+                //                playingState.SpeedComponents[projectileId] = new SpeedComponent() { Speed = 15f };
+                //                playingState.PositionComponents[projectileId] = new PositionComponent() { Position = position, Destination = new Rectangle((int)position.X, (int)position.Y, destination.Width, destination.Height) };
+                //                playingState.DamageComponents[projectileId] = new DamageComponent() { Damage = 10 };
+                //                playingState.OwnerComponents[projectileId] = new OwnerComponent() { OwnerID = wid };
+                //            }
+                //        }
+                //    }
+                //}
                 
 
 
@@ -124,7 +158,10 @@ namespace TwoDECS.Engine.Systems
 
                 positionComponent.Position = position;
                 positionComponent.Destination = destination;
-                playingState.PositionComponents[id] = positionComponent;                
+                playingState.PositionComponents[id] = positionComponent;
+
+                playingState.VelocityComponents[id] = velocityComponent;
+                playingState.AccelerationComponents[id] = accelerationComponent;
             }
         }
     }

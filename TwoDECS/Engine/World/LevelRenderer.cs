@@ -7,6 +7,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using TwoDECS.Engine.Cameras;
+using TwoDECS.Engine.Components;
 
 namespace TwoDECS.Engine.World
 {
@@ -30,6 +31,7 @@ namespace TwoDECS.Engine.World
 
             Point playerSpawnPoint = new Point();
             List<Point> enemySpawnPoints = new List<Point>();
+            List<Rectangle> BoundingBoxes = new List<Rectangle>();
             int x = 0;
             int y = 0;
             while (!reader.EndOfStream)
@@ -43,7 +45,8 @@ namespace TwoDECS.Engine.World
                     {
                         row.Add(new Tile("", x, y, tileSize, tileSize, new Rectangle(126, 540, tileSize, tileSize), TileType.Ground));
                     }
-                    else if(Int32.Parse(value) == 904){
+                    else if (Int32.Parse(value) == 904)
+                    {
                         row.Add(new Tile("", x, y, tileSize, tileSize, new Rectangle(72, 540, tileSize, tileSize), TileType.Solid));
                     }
                     else if (Int32.Parse(value) == 805)
@@ -80,6 +83,34 @@ namespace TwoDECS.Engine.World
 
             this.Font = font;
             this.TileMap = new TileMap(tiles, tiles.GetLength(0), tiles.GetLength(1), tileSize, playerSpawnPoint, enemySpawnPoints);
+        }
+
+        public void CreateLevelObjects(PlayingState playingState, string filepath)
+        {
+            var reader = new StreamReader(File.OpenRead(filepath));
+            List<Rectangle> rectangles = new List<Rectangle>();
+            int x = 0;
+            int y = 0;
+            while (!reader.EndOfStream)
+            {
+                var line = reader.ReadLine();
+                var values = line.Split(',');
+                rectangles.Add(new Rectangle(Int32.Parse(values[0]), Int32.Parse(values[1]), Int32.Parse(values[2]), Int32.Parse(values[3])));
+            }
+
+
+            foreach (Rectangle rectangle in rectangles)
+            {
+                Guid id = playingState.CreateEntity();
+                playingState.Entities.Where(l => l.ID == id).First().ComponentFlags = ComponentMasks.LevelObjects;
+
+                Vector2 position = new Vector2(rectangle.X * TileMap.TileSize, rectangle.Y * TileMap.TileSize);
+                Rectangle destination = new Rectangle(rectangle.X * TileMap.TileSize, rectangle.Y * TileMap.TileSize, (rectangle.Width - rectangle.X + 1) * TileMap.TileSize, (rectangle.Height - rectangle.Y + 1) * TileMap.TileSize);
+
+                playingState.DirectionComponents[id] = new DirectionComponent() { Direction = 0f};
+                playingState.DisplayComponents[id] = new DisplayComponent() { Source = new Rectangle(342, 108, TileMap.TileSize, TileMap.TileSize) };
+                playingState.PositionComponents[id] = new PositionComponent() { Position = position, Destination = destination };
+            }
         }
 
         public void Initialize(Tile[,] tileMap, int tileSize, SpriteFont font)

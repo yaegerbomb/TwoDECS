@@ -30,6 +30,11 @@ namespace TwoDECS.Engine.World
 
         public TileType Type { get; set; }
 
+        public Tile()
+        {
+
+        }
+
         public Tile(string name, int x, int y, int width, int height, Rectangle source, TileType type)
         {
             this.Name = name;

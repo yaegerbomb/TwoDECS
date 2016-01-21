@@ -38,11 +38,14 @@
     <ApplicationIcon>Icon.ico</ApplicationIcon>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="Engine\Algorithms\LOSShadowCasting.cs" />
     <Compile Include="Engine\Algorithms\PriorityQueue.cs" />
     <Compile Include="Engine\Algorithms\SpatialAStar.cs" />
     <Compile Include="Engine\Cameras\FollowCamera.cs" />
     <Compile Include="Engine\Components.cs" />
     <Compile Include="Engine\Components\AABBComponent.cs" />
+    <Compile Include="Engine\Components\AccelerationComponent.cs" />
+    <Compile Include="Engine\Components\AIComponent.cs" />
     <Compile Include="Engine\Components\ContainerComponent.cs" />
     <Compile Include="Engine\Components\DamageComponent.cs" />
     <Compile Include="Engine\Components\DirectionComponent.cs" />
@@ -51,10 +54,11 @@
     <Compile Include="Engine\Components\OwnerComponent.cs" />
     <Compile Include="Engine\Components\QuantityComponent.cs" />
     <Compile Include="Engine\Components\PositionComponent.cs" />
-    <Compile Include="Engine\Components\SpeedComponent.cs" />
+    <Compile Include="Engine\Components\VelocityComponent.cs" />
     <Compile Include="Engine\Components\TimerComponent.cs" />
     <Compile Include="Engine\Entity.cs" />
     <Compile Include="Engine\Systems\AABBDetectionSystem.cs" />
+    <Compile Include="Engine\Systems\AISystem.cs" />
     <Compile Include="Engine\Systems\DisplaySystem.cs" />
     <Compile Include="Engine\Systems\MouseInputSystem.cs" />
     <Compile Include="Engine\Systems\PlayerInputSystem.cs" />
@@ -89,6 +93,9 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="Engine\World\Levels\TestMap.csv">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Include="Engine\World\Levels\TestMapBoundingBoxes.csv">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
   </ItemGroup>

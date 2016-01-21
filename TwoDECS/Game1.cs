@@ -89,6 +89,7 @@ namespace TwoDECS
 
             levelRenderer = new LevelRenderer();
             levelRenderer.ImportMap(Content, "Engine\\World\\Levels\\TestMap.csv", tileSize, spriteFont);
+            levelRenderer.CreateLevelObjects(playingState, "Engine\\World\\Levels\\TestMapBoundingBoxes.csv");
 
             levelCollisionDetection = new LevelCollisionDetection(levelRenderer.TileMap, tileSize);
 
@@ -120,8 +121,8 @@ namespace TwoDECS
             playingState.DisplayComponents[id] = new DisplayComponent() { Source = new Rectangle(451, 470, tileSize, tileSize) };
             playingState.HealthComponents[id] = new HealthComponent() { Health = 100 };
             playingState.PositionComponents[id] = new PositionComponent() { Position = position, Destination = new Rectangle((int)position.X, (int)position.Y, tileSize, tileSize) };
-            playingState.SpeedComponents[id] = new SpeedComponent() { Speed = 8f };
-            CreateWeapon(position, 0f, .25f, 30, id);
+            playingState.VelocityComponents[id] = new VelocityComponent() { xVelocity = 0f, yVelocity = 0f, xTerminalVelocity = 1f, yTerminalVelocity = 1f };
+            playingState.AccelerationComponents[id] = new AccelerationComponent() { xAcceleration = 1f, yAcceleration = 1f };
         }
 
         public void CreateEnemy(Vector2 position, int tileSize)
@@ -133,7 +134,18 @@ namespace TwoDECS
             playingState.DisplayComponents[id] = new DisplayComponent() { Source = new Rectangle(343, 470, tileSize, tileSize) };
             playingState.HealthComponents[id] = new HealthComponent() { Health = 15 };
             playingState.PositionComponents[id] = new PositionComponent() { Position = position, Destination = new Rectangle((int)position.X, (int)position.Y, tileSize, tileSize) };
-            playingState.SpeedComponents[id] = new SpeedComponent() { Speed = 6f };
+            playingState.VelocityComponents[id] = new VelocityComponent() { xVelocity = 0f, yVelocity = 0f, xTerminalVelocity = 6f, yTerminalVelocity = 6f };
+            playingState.AccelerationComponents[id] = new AccelerationComponent() { xAcceleration = 6f, yAcceleration = 6f };
+
+            playingState.AIComponents[id] = new AIComponent()
+            {
+                ActiveState = new List<AIState>(),
+                LineOfSite = 6 * tileSize,
+                PatrolPath = new List<Vector2>(),
+                AttackPath = new List<Vector2>(),
+                Astar = aStar
+            };
+            playingState.AIComponents[id].ActiveState.Add(AIState.STILL);
         }
 
         public void CreateWeapon(Vector2 position, float direction, float fireingRate, int ammo, Guid owner)
@@ -146,11 +158,10 @@ namespace TwoDECS
             playingState.DisplayComponents[id] = new DisplayComponent() { Source = new Rectangle(488, 434, tileSize, tileSize) };
             playingState.PositionComponents[id] = new PositionComponent() { Position = position, Destination = new Rectangle((int)position.X, (int)position.Y, tileSize, tileSize) };
             playingState.TimerComponents[id] = new TimerComponent() { CountDown = 1, TimerReset = .25f };
-            playingState.OwnerComponents[id] = new OwnerComponent() { OwnerID = owner };
 
         }
 
-        public void CreateProjectile(Vector2 position, float direction, float speed, int tileSize, Guid owner)
+        public void CreateProjectile(Vector2 position, float direction, float acceleration, int tileSize, Guid owner)
         {
             Guid id = playingState.CreateEntity();
             playingState.Entities.Where(x => x.ID == id).First().ComponentFlags = ComponentMasks.Projectile;
@@ -158,9 +169,9 @@ namespace TwoDECS
 
             playingState.DirectionComponents[id] = new DirectionComponent() { Direction = direction };
             playingState.DisplayComponents[id] = new DisplayComponent() { Source = new Rectangle(21, 504, tileSize, tileSize) };
-            playingState.SpeedComponents[id] = new SpeedComponent() { Speed = speed };
+            playingState.VelocityComponents[id] = new VelocityComponent() { xVelocity = 0, yVelocity = 0 };
             playingState.PositionComponents[id] = new PositionComponent() { Position = position, Destination = new Rectangle((int)position.X, (int)position.Y, tileSize, tileSize) };
-            playingState.OwnerComponents[id] = new OwnerComponent() { OwnerID = owner };
+            playingState.AccelerationComponents[id] = new AccelerationComponent() { xAcceleration = acceleration, yAcceleration = acceleration };
 
         }
 
@@ -209,6 +220,10 @@ namespace TwoDECS
 
             //update movement
             PlayerInputSystem.HandlePlayerMovement(playingState, graphics, gameTime, keyboardState, mouseState, gamepadState, followCamera, levelRenderer.TileMap, levelCollisionDetection);
+            
+            //update player ai
+            AISystem.UpdateEnemeyAI(playingState);
+
 
             //update projectiles
             ProjectileSystem.UpdateProjectiles(playingState);
@@ -234,8 +249,9 @@ namespace TwoDECS
             // TODO: Add your drawing code here
             levelRenderer.Draw(spriteBatch, spriteSheet, followCamera);
             
-            DisplaySystem.DrawPlayingStateDisplayEntities(playingState, followCamera, spriteBatch, spriteSheet);
+            DisplaySystem.DrawPlayingStateDisplayEntities(playingState, followCamera, spriteBatch, spriteSheet, graphics);
 
+            //DisplaySystem.DrawLevelObjects(playingState, spriteBatch, graphics.GraphicsDevice);
 
             spriteBatch.End();
             base.Draw(gameTime);

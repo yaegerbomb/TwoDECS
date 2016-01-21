@@ -5,8 +5,9 @@ using System.Text;
 
 namespace TwoDECS.Engine.Components
 {
-    public struct SpeedComponent
+    public struct AccelerationComponent
     {
-        public float Speed;
+        public float xAcceleration;
+        public float yAcceleration;
     }
 }
