@@ -45,6 +45,49 @@ namespace TwoDECS.Engine.Systems
 
         }
 
+        public static LinkedList<Tile> OptimizePath(LinkedList<Tile> pathUnoptimized)
+        {
+            //if there are only 2 tiles then there is not optimization to take place
+            if (pathUnoptimized.Count > 2)
+            {
+                LinkedList<Tile> optimizedPath = new LinkedList<Tile>();
+                //add the first piont to the path
+                optimizedPath.AddFirst(pathUnoptimized.First());
+
+                //remove our first tile from the unoptimized list
+                pathUnoptimized.RemoveFirst();
+
+                //start with the first tile and work our way through tiles to 
+                Vector2 lastComparitiveSlope = pathUnoptimized.First.Value.TilePosition - optimizedPath.Last().TilePosition;
+                Tile lastPath = optimizedPath.Last();
+                foreach (Tile path in pathUnoptimized)
+                {
+                    Vector2 comparitiveSlope = path.TilePosition - lastPath.TilePosition;
+
+                    if (!Vector2.Equals(comparitiveSlope, lastComparitiveSlope))
+                    {
+                        //put our current path on the optimized path
+                        optimizedPath.AddLast(path);
+                        lastPath = path;
+                    }
+                    else if (Vector2.Equals(comparitiveSlope, lastComparitiveSlope) && path == pathUnoptimized.Last())
+                    {
+                        optimizedPath.AddLast(path);
+                    }
+                    else
+                    {
+                        lastPath = path;
+                    }
+                }
+
+                return optimizedPath;
+            }
+            else
+            {
+                return pathUnoptimized;
+            }
+        }
+
         public static void ProceedWithNextPath(Guid EnemyID, AIComponent enemyAIComponent, PlayingState playingState)
         {
             //hrmm our current path is empty, lets get back to patrolling
@@ -68,13 +111,13 @@ namespace TwoDECS.Engine.Systems
                 }
 
                 //set an active path too
-                var CurrentPosition = playingState.PositionComponents[EnemyID];
+                var CurrentAABBComponent = playingState.AABBComponents[EnemyID];
                 var BoundedBox = playingState.AABBComponents[EnemyID].BoundedBox;
                 int width = BoundedBox.Width;
                 int height = BoundedBox.Height;
-                Point startingPoint = new Point((int)(CurrentPosition.Position.X / width), (int)(CurrentPosition.Position.Y / height));
+                Point startingPoint = new Point((int)(CurrentAABBComponent.BoundedBox.X / width), (int)(CurrentAABBComponent.BoundedBox.Y / height));
                 Point endingPoint = new Point((int)(enemyAIComponent.PathGoal.X), (int)(enemyAIComponent.PathGoal.Y));
-                enemyAIComponent.ActivePath = enemyAIComponent.Astar.Search(startingPoint, endingPoint, null);
+                enemyAIComponent.ActivePath = OptimizePath(enemyAIComponent.Astar.Search(startingPoint, endingPoint, null));
                 
                 playingState.AIComponents[EnemyID] = enemyAIComponent;
 
@@ -85,9 +128,18 @@ namespace TwoDECS.Engine.Systems
                 var AABBComponent = playingState.AABBComponents[EnemyID];
                 var Acceleration = playingState.AccelerationComponents[EnemyID];
                 var AdjustedActive = new Vector2(enemyAIComponent.ActivePath.First.Value.TilePosition.X, enemyAIComponent.ActivePath.First.Value.TilePosition.Y);
+                
+                var lowestX = Math.Min(AABBComponent.BoundedBox.X, AdjustedActive.X);
+                var highestX = Math.Max(AABBComponent.BoundedBox.X, AdjustedActive.X);
+
+                var lowestY = Math.Min(AABBComponent.BoundedBox.Y, AdjustedActive.Y);
+                var highestY = Math.Max(AABBComponent.BoundedBox.Y, AdjustedActive.Y);
+
+                //create rectangle for our path goal
+                var AdjustRect = new Rectangle((int)AdjustedActive.X, (int)AdjustedActive.Y, AABBComponent.BoundedBox.Width, AABBComponent.BoundedBox.Height);
+                
                 //if our distance is within 1 point, lets get a new path
-                Console.WriteLine(Vector2.Distance(CurrentPosition.Position, AdjustedActive));
-                if (Vector2.Distance(CurrentPosition.Position, AdjustedActive) <= 2.5)
+                if (AABBComponent.BoundedBox.Intersects(AdjustRect))
                 {
                     //remove the first element in our active path
                     enemyAIComponent.ActivePath.RemoveFirst();
@@ -96,7 +148,7 @@ namespace TwoDECS.Engine.Systems
                         AdjustedActive = new Vector2(enemyAIComponent.ActivePath.First.Value.TilePosition.X, enemyAIComponent.ActivePath.First.Value.TilePosition.Y);
 
                         //update our direction
-                        var direction = AdjustedActive - CurrentPosition.Position;
+                        var direction = AdjustedActive - new Vector2(AABBComponent.BoundedBox.X, AABBComponent.BoundedBox.Y);
                         direction.Normalize();
                         DirectionComponent enemyDirection = playingState.DirectionComponents[EnemyID];
                         enemyDirection.Direction = (float)Math.Atan2((double)direction.Y, (double)direction.X);
@@ -108,29 +160,58 @@ namespace TwoDECS.Engine.Systems
                 {
 
                     //update enemy position
-                    if (CurrentPosition.Position.X < AdjustedActive.X)
+                    if (AABBComponent.BoundedBox.X < AdjustedActive.X)
                     {
-                        CurrentPosition.Position.X += Acceleration.xAcceleration;
+                        if ((AABBComponent.BoundedBox.X + (int)Acceleration.xAcceleration) > AdjustedActive.X)
+                        {
+                            AABBComponent.BoundedBox.X = (int)AdjustedActive.X;
+                        }
+                        else
+                        {
+                            AABBComponent.BoundedBox.X += (int)Acceleration.xAcceleration;
+                        }
                         //this.Position = mapCollisionDetection.CheckWallCollision(this.Position, this.Width, this.Height, Direction.Right);
                     }
-                    else if (CurrentPosition.Position.X > AdjustedActive.X)
+                    else if (AABBComponent.BoundedBox.X > AdjustedActive.X)
                     {
-                        CurrentPosition.Position.X -= Acceleration.xAcceleration;
+                        if ((AABBComponent.BoundedBox.X - Acceleration.xAcceleration) < AdjustedActive.X)
+                        {
+                            AABBComponent.BoundedBox.X = (int)AdjustedActive.X;
+                        }
+                        else
+                        {
+                            AABBComponent.BoundedBox.X -= (int)Acceleration.xAcceleration;
+                        }
                         //this.Position = mapCollisionDetection.CheckWallCollision(this.Position, this.Width, this.Height, Direction.Left);
                     }
 
-                    if (CurrentPosition.Position.Y > AdjustedActive.Y)
+                    if (AABBComponent.BoundedBox.Y > AdjustedActive.Y)
                     {
-                        CurrentPosition.Position.Y -= Acceleration.yAcceleration;
+                        if (AABBComponent.BoundedBox.Y - (int)Acceleration.yAcceleration < AdjustedActive.Y)
+                        {
+                            AABBComponent.BoundedBox.Y = (int)AdjustedActive.Y;
+                        }
+                        else
+                        {
+                            AABBComponent.BoundedBox.Y -= (int)Acceleration.yAcceleration;
+                        }
                         //this.Position = mapCollisionDetection.CheckWallCollision(this.Position, this.Width, this.Height, Direction.Up);
                     }
-                    else if (CurrentPosition.Position.Y < AdjustedActive.Y)
+                    else if (AABBComponent.BoundedBox.Y < AdjustedActive.Y)
                     {
-                        CurrentPosition.Position.Y += Acceleration.yAcceleration;
+                        if (AABBComponent.BoundedBox.Y + (int)Acceleration.yAcceleration > AdjustedActive.Y)
+                        {
+                            AABBComponent.BoundedBox.Y = (int)AdjustedActive.Y;
+                        }
+                        else
+                        {
+                            AABBComponent.BoundedBox.Y += (int)Acceleration.yAcceleration;
+                        }
                         //this.Position = mapCollisionDetection.CheckWallCollision(this.Position, this.Width, this.Height, Direction.Down);
                     }
 
-                    AABBComponent.BoundedBox = new Rectangle((int)CurrentPosition.Position.X - (AABBComponent.BoundedBox.Width / 2), (int)CurrentPosition.Position.Y - (AABBComponent.BoundedBox.Height / 2), AABBComponent.BoundedBox.Width, AABBComponent.BoundedBox.Height);
+                    CurrentPosition.Position = new Vector2(AABBComponent.BoundedBox.X + (AABBComponent.BoundedBox.Width / 2), AABBComponent.BoundedBox.Y + (AABBComponent.BoundedBox.Height / 2));
+
                     playingState.PositionComponents[EnemyID] = CurrentPosition;
 
                     playingState.AIComponents[EnemyID] = enemyAIComponent;
