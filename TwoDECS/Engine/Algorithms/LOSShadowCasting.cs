@@ -1,4 +1,5 @@
 ﻿using Microsoft.Xna.Framework;
+using Microsoft.Xna.Framework.Graphics;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -7,170 +8,40 @@ using TwoDECS.Engine.World;
 
 namespace TwoDECS.Engine.Algorithms
 {
-    public class Cell
-    {
-        public int UpperShadowCount { get; set; }
-        public int UpperShadowMax { get; set; }
-        public int LowerShadowCount { get; set; }
-        public int LowerShadowMax { get; set; }
-        public bool Visible { get; set; }
-        public bool Lit { get; set; }
-        public bool LitDelay { get; set; }
-
-        public Cell()
-        {
-            this.UpperShadowCount = this.UpperShadowMax = this.LowerShadowCount = this.LowerShadowMax = 0;
-            this.Visible = true;
-            this.Lit = true;
-            LitDelay = false;
-        }
-    }
-
-    class LOSShadowCasting
-    {
-        List<Cell> Cells { get; set; }
-        bool VISIBLE_CORNER;
-        bool BlOCKER;
-        int UP_INCH;
-        int LOW_INC;
-        Tile SOUTH;
-
-        public void CalculateLOSOctant(TileMap tileMap, Vector2 currentPosition, float direction)
-        {
-            Cells = new List<Cell>();
-            Cells.Add(new Cell());
-
-            for (int y = 0; y < tileMap.ColumnCount; y++)
-            {
-                for (int x = 0; x < tileMap.RowCount; x++)
-                {
-                    if (tileMap.Map[x, y].Type == TileType.Solid)
-                    {
-                        BlOCKER = true;
-                    }
-                    UP_INCH = 1;
-                    LOW_INC = 1;
-                    if (y < tileMap.ColumnCount && y > 0)
-                    {
-                        SOUTH = tileMap.Map[x, y - 1];
-                    }
-
-                    if (x < tileMap.RowCount)
-                    {
-
-                    }
-
-                }
-            }
-        }
-
-    }
-
-    public struct Circle
-    {
-        public Circle(int x, int y, int radius)
-            : this()
-        {
-            X = x;
-            Y = y;
-            Radius = radius;
-        }
-
-        public Circle(Vector2 position, float radius)
-            : this()
-        {
-            X = (int)position.X;
-            Y = (int)position.Y;
-            Radius = (int)radius;
-        }
-
-        public int Radius { get; private set; }
-        public int X { get; private set; }
-        public int Y { get; private set; }
-
-        public bool Intersects(Rectangle rectangle)
-        {
-            int circleDistanceX = Math.Abs(this.X - rectangle.X);
-            int circleDistanceY = Math.Abs(this.Y - rectangle.Y);
-
-            if (circleDistanceX > (rectangle.Width / 2 + this.Radius))
-            {
-                return false;
-            }
-
-            if (circleDistanceY > (rectangle.Height / 2 + this.Radius))
-            {
-                return false;
-            }
-
-            if (circleDistanceX <= (rectangle.Width / 2))
-            {
-                return true;
-            }
-
-            if (circleDistanceY <= (rectangle.Height / 2))
-            {
-                return true;
-            }
-
-            var cornerDistance_sq = Math.Pow((circleDistanceX - rectangle.Width / 2), 2) + Math.Pow((circleDistanceY - rectangle.Height / 2), 2);
-            return (cornerDistance_sq <= (this.Radius * this.Radius));
-        }
-
-        public bool Intersects(Circle circle)
-        {
-            // put simply, if the distance between the circle centre's is less than
-            // their combined radius
-            var centre0 = new Vector2(circle.X, circle.Y);
-            var centre1 = new Vector2(X, Y);
-            return Vector2.Distance(centre0, centre1) < Radius + circle.Radius;
-        }
-
-        public bool ContainsPoint(Point point)
-        {
-            var vector2 = new Vector2(point.X - X, point.Y - Y);
-            return vector2.Length() <= Radius;
-        }
-    }
-
+        
     public static class LineOfSiteRayCast
     {
-        public static bool CalculateLineOfSight(Vector2 position, Vector2 positionToCheck, float lineifsight, float direction, PlayingState playingState)
-        {
-            ////draw circle at our position with our radius
-            //Circle circle = new Circle(position, lineifsight * 16);
-
-            //Rectangle positon2Rectangle = new Rectangle((int)positionToCheck.X, (int)positionToCheck.Y, 16, 16);
-
-            //if (circle.Intersects(positon2Rectangle))
-            //{
-            //    Console.WriteLine("Player is in sight radius");
-            //    return true;
-            //}
-            //else
-            //{
-            //    return false;
-            //}
+        public static bool CalculateLineOfSight(Vector2 position, Vector2 positionToCheck, float lineOfSite, float direction, PlayingState playingState)
+        {            
+            //Texture2D blank = new Texture2D(graphics, 1, 1, false, SurfaceFormat.Color);
+            //blank.SetData(new[] { Color.White });
 
             var degree = direction * (180 / Math.PI);
             var lowerDegree = degree - 45;
             var higherDegree = degree + 45;
 
-            //var lowerRadian = lowerDegree * (Math.PI / 180);
-            //Vector2 lowerPoint = RotateVector2(new Vector2(position.X + lineifsight, position.Y), (float)lowerRadian, position);
+            if (lowerDegree > higherDegree)
+            {
+                var temp = lowerDegree;
+                lowerDegree = higherDegree;
+                higherDegree = temp;
+            }
 
             var higherRadian = higherDegree * (Math.PI / 180);
-            Vector2 higherPoint = RotateVector2(new Vector2(position.X + lineifsight, position.Y), (float)higherRadian, position);
+            Vector2 higherPoint = RotateVector2(new Vector2(position.X + lineOfSite, position.Y), (float)higherRadian, position);
 
             var lowerTracker = lowerDegree;
 
             Rectangle positionToCheckRect = new Rectangle((int)positionToCheck.X, (int)positionToCheck.Y, 16, 16);
 
-            while (lowerTracker != higherDegree)
+            while (lowerTracker <= higherDegree)
             {
                 //get if there is anything between our origina and lower tracker
-                var lowerRadian = lowerDegree * (Math.PI / 180);
-                Vector2 lowerPoint = RotateVector2(new Vector2(position.X + lineifsight, position.Y), (float)lowerRadian, position);
+                var lowerRadian = lowerTracker * (Math.PI / 180);
+                Vector2 lowerPoint = RotateVector2(new Vector2(position.X + lineOfSite, position.Y), (float)lowerRadian, position);
+
+                //DrawLine(spriteBatch, blank, 1f, Color.ForestGreen, position, lowerPoint); ;
+                
                 var collision = CheckIfPointOnLineIntersectsRect(position.X, position.Y, lowerPoint.X, lowerPoint.Y, positionToCheckRect);
                 if (collision)
                 {
@@ -179,10 +50,16 @@ namespace TwoDECS.Engine.Algorithms
                 lowerTracker++;
             }
 
-            //now that we have our lower and upper bounds, check 6 lines ahead of each and see if they intersect the player
-
             return false;
 
+        }
+
+        static void DrawLine(SpriteBatch batch, Texture2D blank, float width, Color color, Vector2 point1, Vector2 point2)
+        {
+            float angle = (float)Math.Atan2(point2.Y - point1.Y, point2.X - point1.X);
+            float length = Vector2.Distance(point1, point2);
+
+            batch.Draw(blank, point1, null, color, angle, Vector2.Zero, new Vector2(length, width), SpriteEffects.None, 0);
         }
 
         public static Vector2 RotateVector2(Vector2 point, float radians, Vector2 pivot)
@@ -201,32 +78,6 @@ namespace TwoDECS.Engine.Algorithms
             return rotatedPoint;
         }
 
-        // a1 is line1 start, a2 is line1 end, b1 is line2 start, b2 is line2 end
-        static bool intersects(Vector2 a1, Vector2 a2, Vector2 b1, Vector2 b2)
-        {
-            Vector2 intersection = Vector2.Zero;
-
-            Vector2 b = Vector2.Subtract(a2, a1);
-            Vector2 d = Vector2.Subtract(b2, b1);
-            float bDotDPerp = b.X * d.Y - b.Y * d.X;
-
-            // if b dot d == 0, it means the lines are parallel so have infinite intersection points
-            if (bDotDPerp == 0)
-                return false;
-
-            Vector2 c = Vector2.Subtract(b1, a1);
-            float t = (c.X * d.Y - c.Y * d.X) / bDotDPerp;
-            if (t < 0 || t > 1)
-                return false;
-
-            float u = (c.X * b.Y - c.Y * b.X) / bDotDPerp;
-            if (u < 0 || u > 1)
-                return false;
-
-            intersection = Vector2.Add(a1, Vector2.Multiply(b, t));
-
-            return true;
-        }
 
         static void Swap<T>(ref T a, ref T b)
         {

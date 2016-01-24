@@ -51,6 +51,7 @@
     <Compile Include="Engine\Components\DirectionComponent.cs" />
     <Compile Include="Engine\Components\DisplayComponent.cs" />
     <Compile Include="Engine\Components\HealthComponent.cs" />
+    <Compile Include="Engine\Components\LabelComponent.cs" />
     <Compile Include="Engine\Components\OwnerComponent.cs" />
     <Compile Include="Engine\Components\QuantityComponent.cs" />
     <Compile Include="Engine\Components\PositionComponent.cs" />
@@ -80,10 +81,15 @@
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Xml" />
+    <Reference Include="TiledSharp, Version=0.10.5865.36078, Culture=neutral, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>lib\TiledSharp.dll</HintPath>
+    </Reference>
   </ItemGroup>
   <ItemGroup>
     <Content Include="Content\Graphics\UIpackSheet_transparent.png" />
     <Content Include="Icon.ico" />
+    <Content Include="lib\TiledSharp.dll" />
   </ItemGroup>
   <ItemGroup>
     <MonoGameContentReference Include="Content\Content.mgcb" />
@@ -92,10 +98,7 @@
     <Folder Include="Content\Fonts\" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="Engine\World\Levels\TestMap.csv">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-    <None Include="Engine\World\Levels\TestMapBoundingBoxes.csv">
+    <None Include="Engine\World\Levels\testmap.tmx">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
   </ItemGroup>

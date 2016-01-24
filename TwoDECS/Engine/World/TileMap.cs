@@ -14,6 +14,12 @@ namespace TwoDECS.Engine.World
         public int TileSize { get; set; }
         public Point PlayerSpawn { get; set; }
         public List<Point> EnemySpawns { get; set; }
+        public AStarSolver<Tile, Object> aStar { get; set; }
+
+        public TileMap()
+        {
+
+        }
 
         public TileMap(Tile[,] tileMap, int rowCount, int columnCount, int tileSize)
         {

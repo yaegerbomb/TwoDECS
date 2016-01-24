@@ -8,127 +8,203 @@ using System.Linq;
 using System.Text;
 using TwoDECS.Engine.Cameras;
 using TwoDECS.Engine.Components;
+using TiledSharp;
 
 namespace TwoDECS.Engine.World
 {
+    struct SpriteHolder{
+        public Vector2 origin;
+    }
+
     class LevelRenderer
     {
         public TileMap TileMap { get; set; }
+        public Dictionary<int, SpriteHolder> SpritePositions { get; set; }
         private SpriteFont Font;
+        private Random random;
 
         public LevelRenderer()
         {
-
+            random = new Random();
         }
 
-
-        //import csv file
-        public void ImportMap(ContentManager content, string filepath, int tileSize, SpriteFont font)
+        private void GetSpriteCoordinates(int ID)
         {
-            var reader = new StreamReader(File.OpenRead(filepath));
-
-            List<List<Tile>> Tiles = new List<List<Tile>>();
-
-            Point playerSpawnPoint = new Point();
-            List<Point> enemySpawnPoints = new List<Point>();
-            List<Rectangle> BoundingBoxes = new List<Rectangle>();
-            int x = 0;
-            int y = 0;
-            while (!reader.EndOfStream)
-            {
-                var line = reader.ReadLine();
-                var values = line.Split(',');
-                List<Tile> row = new List<Tile>();
-                foreach (string value in values)
-                {
-                    if (Int32.Parse(value) == 907)
-                    {
-                        row.Add(new Tile("", x, y, tileSize, tileSize, new Rectangle(126, 540, tileSize, tileSize), TileType.Ground));
-                    }
-                    else if (Int32.Parse(value) == 904)
-                    {
-                        row.Add(new Tile("", x, y, tileSize, tileSize, new Rectangle(72, 540, tileSize, tileSize), TileType.Solid));
-                    }
-                    else if (Int32.Parse(value) == 805)
-                    {
-                        playerSpawnPoint = new Point(x, y);
-                        row.Add(new Tile("", x, y, tileSize, tileSize, new Rectangle(126, 540, tileSize, tileSize), TileType.Ground));
-                    }
-                    else if (Int32.Parse(value) == 799)
-                    {
-                        enemySpawnPoints.Add(new Point(x, y));
-                        row.Add(new Tile("", x, y, tileSize, tileSize, new Rectangle(126, 540, tileSize, tileSize), TileType.Ground));
-                    }
-
-                    x++;
-                }
-                Tiles.Add(row);
-                x = 0;
-                y++;
-            }
-
-            Tile[,] tiles = new Tile[Tiles.Count(), Tiles.First().Count()];
-            x = 0;
-            y = 0;
-            foreach (List<Tile> t in Tiles)
-            {
-                foreach (Tile row in t)
-                {
-                    tiles[x, y] = row;
-                    x++;
-                }
-                x = 0;
-                y++;
-            }
-
-            this.Font = font;
-            this.TileMap = new TileMap(tiles, tiles.GetLength(0), tiles.GetLength(1), tileSize, playerSpawnPoint, enemySpawnPoints);
+            int row = (int)Math.Floor((double)(ID / TileMap.ColumnCount));
+            int column = ID % TileMap.ColumnCount;
+            int xCoord = column * 16;
+            int yCoord = row * 16;
         }
 
-        public void CreateLevelObjects(PlayingState playingState, string filepath)
+        public void CreateTileMap(TmxTileset tmxTileSet)
         {
-            var reader = new StreamReader(File.OpenRead(filepath));
-            List<Rectangle> rectangles = new List<Rectangle>();
-            int x = 0;
-            int y = 0;
-            while (!reader.EndOfStream)
+            TileMap.TileSize = tmxTileSet.TileWidth;
+            
+            int columnCount = tmxTileSet.Columns;
+            int? NumOfIds = tmxTileSet.TileCount;
+
+            //create our sprite positions
+            SpritePositions = new Dictionary<int, SpriteHolder>();
+            for (int i = 0; i < NumOfIds; i++)
             {
-                var line = reader.ReadLine();
-                var values = line.Split(',');
-                rectangles.Add(new Rectangle(Int32.Parse(values[0]), Int32.Parse(values[1]), Int32.Parse(values[2]), Int32.Parse(values[3])));
+                int row = (int)Math.Floor((double)(i / columnCount));
+                int column = i % columnCount;
+                int x = column * TileMap.TileSize;
+                int y = row * TileMap.TileSize;
+
+                SpritePositions[i] = new SpriteHolder()
+                {
+                    origin = new Vector2(x + (2 * column), y + (2 * row))
+                };
+            }
+        }
+
+        public void CreateTileArray(TmxLayer levelLayer)
+        {
+            Tile[,] tiles = new Tile[TileMap.RowCount, TileMap.ColumnCount];
+            for (var i = 0; i < levelLayer.Tiles.Count; i++)
+            {
+                //our value
+                int gid = levelLayer.Tiles[i].Gid;
+                if (gid != 0)
+                {
+                    gid--;
+                    SpriteHolder spriteHolder = SpritePositions[gid];
+                    //we are a ground type else solid
+                    if (gid == 434)
+                    {
+                        tiles[levelLayer.Tiles[i].X, levelLayer.Tiles[i].Y] = new Tile("", levelLayer.Tiles[i].X, levelLayer.Tiles[i].Y, TileMap.TileSize, TileMap.TileSize, new Rectangle(spriteHolder.origin.ToPoint().X, spriteHolder.origin.ToPoint().Y, TileMap.TileSize, TileMap.TileSize), TileType.Ground);
+     
+                    }
+                    else
+                    {
+                        tiles[levelLayer.Tiles[i].X, levelLayer.Tiles[i].Y] = new Tile("", levelLayer.Tiles[i].X, levelLayer.Tiles[i].Y, TileMap.TileSize, TileMap.TileSize, new Rectangle(spriteHolder.origin.ToPoint().X, spriteHolder.origin.ToPoint().Y, TileMap.TileSize, TileMap.TileSize), TileType.Solid);
+                    }                    
+                }
+                else
+                {
+                    SpriteHolder spriteHolder = SpritePositions[301];
+                    int size = random.Next(0, 5);
+                    tiles[levelLayer.Tiles[i].X, levelLayer.Tiles[i].Y] = new Tile("", levelLayer.Tiles[i].X, levelLayer.Tiles[i].Y, TileMap.TileSize, TileMap.TileSize, new Rectangle(spriteHolder.origin.ToPoint().X, spriteHolder.origin.ToPoint().Y, size, size), TileType.Solid);
+                }
             }
 
+            TileMap.Map = tiles;
+            TileMap.aStar = new AStarSolver<Tile, Object>(TileMap.Map);
+        }
 
-            foreach (Rectangle rectangle in rectangles)
+        public void CreateBoundingRects(TmxList<TmxObject> rectangles, PlayingState playingState)
+        {
+            foreach (TmxObject rectangle in rectangles)
             {
                 Guid id = playingState.CreateEntity();
                 playingState.Entities.Where(l => l.ID == id).First().ComponentFlags = ComponentMasks.LevelObjects;
+                Vector2 position = new Vector2((float)rectangle.X, (float)rectangle.Y);
+                Rectangle boundedBox = new Rectangle((int)rectangle.X, (int)rectangle.Y, (int)rectangle.Width, (int)rectangle.Height);
 
-                Vector2 position = new Vector2(rectangle.X * TileMap.TileSize, rectangle.Y * TileMap.TileSize);
-                Rectangle destination = new Rectangle(rectangle.X * TileMap.TileSize, rectangle.Y * TileMap.TileSize, (rectangle.Width - rectangle.X + 1) * TileMap.TileSize, (rectangle.Height - rectangle.Y + 1) * TileMap.TileSize);
-
-                playingState.DirectionComponents[id] = new DirectionComponent() { Direction = 0f};
+                playingState.DirectionComponents[id] = new DirectionComponent() { Direction = 0f };
                 playingState.DisplayComponents[id] = new DisplayComponent() { Source = new Rectangle(342, 108, TileMap.TileSize, TileMap.TileSize) };
-                playingState.PositionComponents[id] = new PositionComponent() { Position = position, Destination = destination };
+                playingState.PositionComponents[id] = new PositionComponent() { Position = position };
+                playingState.AABBComponents[id] = new AABBComponent() { BoundedBox = boundedBox };
             }
         }
 
-        public void Initialize(Tile[,] tileMap, int tileSize, SpriteFont font)
+        public void CreatePlayerSpawn(TmxList<TmxObject> playerSpawns, PlayingState playingState)
         {
-            this.TileMap = new TileMap(tileMap, tileMap.GetLength(0), tileMap.GetLength(1), tileSize);
-            this.Font = font;
-            for (int i = 0; i < TileMap.RowCount; i++)
+            foreach (TmxObject playerspawn in playerSpawns)
             {
-                for (int j = 0; j < TileMap.ColumnCount; j++)
-                {
-                    int width = TileMap.Map[i, j].Destination.Width;
-                    int height = TileMap.Map[i, j].Destination.Height;
-                    float posX = i * width;
-                    float posY = j * height;
-                    TileMap.Map[i, j].TilePosition = new Vector2(posX, posY);
-                }
+                Guid id = playingState.CreateEntity();
+                playingState.Entities.Where(x => x.ID == id).First().ComponentFlags = ComponentMasks.Player;
+
+                playingState.DirectionComponents[id] = new DirectionComponent() { Direction = 0f };
+                playingState.DisplayComponents[id] = new DisplayComponent() { Source = new Rectangle(451, 470, TileMap.TileSize, TileMap.TileSize) };
+                playingState.HealthComponents[id] = new HealthComponent() { Health = 100 };
+                playingState.PositionComponents[id] = new PositionComponent() { Position = new Vector2((float)playerspawn.X, (float)playerspawn.Y) };
+                playingState.VelocityComponents[id] = new VelocityComponent() { xVelocity = 0f, yVelocity = 0f, xTerminalVelocity = 6f, yTerminalVelocity = 6f };
+                playingState.AccelerationComponents[id] = new AccelerationComponent() { xAcceleration = 6f, yAcceleration = 6f };
+                //our origin is going to offset our bounded box
+                playingState.AABBComponents[id] = new AABBComponent(){ BoundedBox = new Rectangle((int)playerspawn.X - (TileMap.TileSize / 2), (int)playerspawn.Y - (TileMap.TileSize / 2), TileMap.TileSize, TileMap.TileSize)};
             }
         }
+
+        public void CreateEnemySpawns(TmxList<TmxObject> enemySpawns, PlayingState playingState)
+        {
+            foreach (TmxObject enemypawn in enemySpawns)
+            {
+                Guid id = playingState.CreateEntity();
+                playingState.Entities.Where(x => x.ID == id).First().ComponentFlags = ComponentMasks.Enemy;                
+
+                playingState.DirectionComponents[id] = new DirectionComponent() { Direction = (float)(enemypawn.Rotation * (Math.PI / 180)) };
+                playingState.DisplayComponents[id] = new DisplayComponent() { Source = new Rectangle(343, 470, TileMap.TileSize, TileMap.TileSize) };
+                playingState.HealthComponents[id] = new HealthComponent() { Health = 15 };
+                playingState.PositionComponents[id] = new PositionComponent() { Position = new Vector2((float)enemypawn.X + (TileMap.TileSize / 2), (float)enemypawn.Y + (TileMap.TileSize / 2)) };
+                playingState.VelocityComponents[id] = new VelocityComponent() { xVelocity = 0f, yVelocity = 0f, xTerminalVelocity = 3f, yTerminalVelocity = 3f };
+                playingState.AccelerationComponents[id] = new AccelerationComponent() { xAcceleration = 3f, yAcceleration = 3f };
+                //our origin is going to offset our bounded box
+                playingState.AABBComponents[id] = new AABBComponent() { BoundedBox = new Rectangle((int)enemypawn.X, (int)enemypawn.Y, TileMap.TileSize, TileMap.TileSize) };
+
+                //parse patrol paths
+                string patrolPaths = enemypawn.Properties["PatrolPath"];
+                List<Vector2> PatrolVectors = new List<Vector2>();
+                if (!string.IsNullOrWhiteSpace(patrolPaths))
+                {
+                    string[] newPaths = patrolPaths.Split('|'); 
+                    
+                    for (int i = 0; i < newPaths.Length; i++)
+                    {
+                        newPaths[i] = newPaths[i].Replace("(", "");
+                        newPaths[i] = newPaths[i].Replace(")", "");
+                        int x = Int32.Parse(newPaths[i].Split(',')[0]);
+                        int y = Int32.Parse(newPaths[i].Split(',')[1]);
+                        PatrolVectors.Add(new Vector2(x, y));
+                    }
+                }
+
+                playingState.AIComponents[id] = new AIComponent()
+                {
+                    ActiveState = new Stack<AIState>(),
+                    LineOfSite = 6 * TileMap.TileSize,
+                    PatrolPath = PatrolVectors,
+                    ActivePath = new LinkedList<Tile>(),
+                    Astar = TileMap.aStar
+                };
+                playingState.AIComponents[id].ActiveState.Push(AIState.STILL);
+                playingState.LabelComponents[id] = new LabelComponent() { Label = "", Position = new Vector2((float)enemypawn.X, (float)(enemypawn.Y - 5)) };
+            }
+        }
+
+        public void ImportTMX(ContentManager content, string filepath, int tilesize, SpriteFont font, PlayingState playingState)
+        {
+            TileMap = new TileMap();
+
+            var map = new TmxMap(filepath);
+            TileMap.RowCount = map.Width;
+            TileMap.ColumnCount = map.Height;
+
+
+            //get and set tile map details
+            var tileMap = map.Tilesets["Basic"];
+            CreateTileMap(tileMap);
+
+            //get and set level layer
+            var levelLayer = map.Layers["Level"];
+            CreateTileArray(levelLayer);
+
+            //get and set level bounding rects
+            var boudingRects = map.ObjectGroups["Level Rects"].Objects;
+            CreateBoundingRects(boudingRects, playingState);
+
+            //get and set player spawn
+            var playersSpawn = map.ObjectGroups["Player Spawn"].Objects;
+            CreatePlayerSpawn(playersSpawn, playingState);
+
+            //get and set enemy spawns
+            var enemySpawns = map.ObjectGroups["Enemy Spawns"].Objects;
+            CreateEnemySpawns(enemySpawns, playingState);
+
+            this.Font = font;
+        }
+      
 
         public void Update()
         {

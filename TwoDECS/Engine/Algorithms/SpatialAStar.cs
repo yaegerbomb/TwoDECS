@@ -128,7 +128,7 @@ namespace TwoDECS.Engine.Algorithms
             //watch.Start();
 
             if (startNode == endNode)
-                return new LinkedList<TPathNode>(new TPathNode[] { startNode.UserContext });
+                return new LinkedList<TPathNode>();
 
             PathNode[] neighborNodes = new PathNode[8];
 

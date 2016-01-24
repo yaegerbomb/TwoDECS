@@ -37,8 +37,6 @@ namespace TwoDECS
 
         LevelCollisionDetection levelCollisionDetection;
 
-        AStarSolver<Tile, Object> aStar;
-
         private const int tileSize = 16;
         private const int numberOfRows = 100;
         private const int numberOfColumns = 100;
@@ -88,92 +86,39 @@ namespace TwoDECS
 
 
             levelRenderer = new LevelRenderer();
-            levelRenderer.ImportMap(Content, "Engine\\World\\Levels\\TestMap.csv", tileSize, spriteFont);
-            levelRenderer.CreateLevelObjects(playingState, "Engine\\World\\Levels\\TestMapBoundingBoxes.csv");
+            levelRenderer.ImportTMX(Content, "Engine\\World\\Levels\\testmap.tmx", tileSize, spriteFont, playingState);
 
             levelCollisionDetection = new LevelCollisionDetection(levelRenderer.TileMap, tileSize);
 
 
-            aStar = new AStarSolver<Tile, Object>(levelRenderer.TileMap.Map);
-
-            Vector2 playerSpawn = levelRenderer.TileMap.PlayerSpawn.ToVector2();
-            playerSpawn.X *= tileSize;
-            playerSpawn.Y *= tileSize;
-
-            CreatePlayer(playerSpawn, tileSize);
-
-            foreach (Point enemy in levelRenderer.TileMap.EnemySpawns)
-            {
-                Vector2 enemySpawn = enemy.ToVector2();
-                enemySpawn.X *= tileSize;
-                enemySpawn.Y *= tileSize;
-                CreateEnemy(enemySpawn, tileSize);
-            }
-
         }
 
-        public void CreatePlayer(Vector2 position, int tileSize)
-        {
-            Guid id = playingState.CreateEntity();
-            playingState.Entities.Where(x => x.ID == id).First().ComponentFlags = ComponentMasks.Player;
-
-            playingState.DirectionComponents[id] = new DirectionComponent() { Direction = 0f };
-            playingState.DisplayComponents[id] = new DisplayComponent() { Source = new Rectangle(451, 470, tileSize, tileSize) };
-            playingState.HealthComponents[id] = new HealthComponent() { Health = 100 };
-            playingState.PositionComponents[id] = new PositionComponent() { Position = position, Destination = new Rectangle((int)position.X, (int)position.Y, tileSize, tileSize) };
-            playingState.VelocityComponents[id] = new VelocityComponent() { xVelocity = 0f, yVelocity = 0f, xTerminalVelocity = 1f, yTerminalVelocity = 1f };
-            playingState.AccelerationComponents[id] = new AccelerationComponent() { xAcceleration = 1f, yAcceleration = 1f };
-        }
-
-        public void CreateEnemy(Vector2 position, int tileSize)
-        {
-            Guid id = playingState.CreateEntity();
-            playingState.Entities.Where(x => x.ID == id).First().ComponentFlags = ComponentMasks.Enemy;
-
-            playingState.DirectionComponents[id] = new DirectionComponent() { Direction = 0f };
-            playingState.DisplayComponents[id] = new DisplayComponent() { Source = new Rectangle(343, 470, tileSize, tileSize) };
-            playingState.HealthComponents[id] = new HealthComponent() { Health = 15 };
-            playingState.PositionComponents[id] = new PositionComponent() { Position = position, Destination = new Rectangle((int)position.X, (int)position.Y, tileSize, tileSize) };
-            playingState.VelocityComponents[id] = new VelocityComponent() { xVelocity = 0f, yVelocity = 0f, xTerminalVelocity = 6f, yTerminalVelocity = 6f };
-            playingState.AccelerationComponents[id] = new AccelerationComponent() { xAcceleration = 6f, yAcceleration = 6f };
-
-            playingState.AIComponents[id] = new AIComponent()
-            {
-                ActiveState = new List<AIState>(),
-                LineOfSite = 6 * tileSize,
-                PatrolPath = new List<Vector2>(),
-                AttackPath = new List<Vector2>(),
-                Astar = aStar
-            };
-            playingState.AIComponents[id].ActiveState.Add(AIState.STILL);
-        }
-
-        public void CreateWeapon(Vector2 position, float direction, float fireingRate, int ammo, Guid owner)
-        {
-            Guid id = playingState.CreateEntity();
-            playingState.Entities.Where(x => x.ID == id).First().ComponentFlags = ComponentMasks.Weapon;
+        //public void CreateWeapon(Vector2 position, float direction, float fireingRate, int ammo, Guid owner)
+        //{
+        //    Guid id = playingState.CreateEntity();
+        //    playingState.Entities.Where(x => x.ID == id).First().ComponentFlags = ComponentMasks.Weapon;
 
 
-            playingState.DirectionComponents[id] = new DirectionComponent() { Direction = direction };
-            playingState.DisplayComponents[id] = new DisplayComponent() { Source = new Rectangle(488, 434, tileSize, tileSize) };
-            playingState.PositionComponents[id] = new PositionComponent() { Position = position, Destination = new Rectangle((int)position.X, (int)position.Y, tileSize, tileSize) };
-            playingState.TimerComponents[id] = new TimerComponent() { CountDown = 1, TimerReset = .25f };
+        //    playingState.DirectionComponents[id] = new DirectionComponent() { Direction = direction };
+        //    playingState.DisplayComponents[id] = new DisplayComponent() { Source = new Rectangle(488, 434, tileSize, tileSize) };
+        //    playingState.PositionComponents[id] = new PositionComponent() { Position = position, Destination = new Rectangle((int)position.X, (int)position.Y, tileSize, tileSize) };
+        //    playingState.TimerComponents[id] = new TimerComponent() { CountDown = 1, TimerReset = .25f };
 
-        }
+        //}
 
-        public void CreateProjectile(Vector2 position, float direction, float acceleration, int tileSize, Guid owner)
-        {
-            Guid id = playingState.CreateEntity();
-            playingState.Entities.Where(x => x.ID == id).First().ComponentFlags = ComponentMasks.Projectile;
+        //public void CreateProjectile(Vector2 position, float direction, float acceleration, int tileSize, Guid owner)
+        //{
+        //    Guid id = playingState.CreateEntity();
+        //    playingState.Entities.Where(x => x.ID == id).First().ComponentFlags = ComponentMasks.Projectile;
 
 
-            playingState.DirectionComponents[id] = new DirectionComponent() { Direction = direction };
-            playingState.DisplayComponents[id] = new DisplayComponent() { Source = new Rectangle(21, 504, tileSize, tileSize) };
-            playingState.VelocityComponents[id] = new VelocityComponent() { xVelocity = 0, yVelocity = 0 };
-            playingState.PositionComponents[id] = new PositionComponent() { Position = position, Destination = new Rectangle((int)position.X, (int)position.Y, tileSize, tileSize) };
-            playingState.AccelerationComponents[id] = new AccelerationComponent() { xAcceleration = acceleration, yAcceleration = acceleration };
+        //    playingState.DirectionComponents[id] = new DirectionComponent() { Direction = direction };
+        //    playingState.DisplayComponents[id] = new DisplayComponent() { Source = new Rectangle(21, 504, tileSize, tileSize) };
+        //    playingState.VelocityComponents[id] = new VelocityComponent() { xVelocity = 0, yVelocity = 0 };
+        //    playingState.PositionComponents[id] = new PositionComponent() { Position = position, Destination = new Rectangle((int)position.X, (int)position.Y, tileSize, tileSize) };
+        //    playingState.AccelerationComponents[id] = new AccelerationComponent() { xAcceleration = acceleration, yAcceleration = acceleration };
 
-        }
+        //}
 
         /// <summary>
         /// UnloadContent will be called once per game and is the place to unload
@@ -182,6 +127,8 @@ namespace TwoDECS
         protected override void UnloadContent()
         {
             // TODO: Unload any non ContentManager content here
+            Content.Unload();
+            Content.Dispose();
             
         }
 
@@ -214,22 +161,26 @@ namespace TwoDECS
             Entity player = playingState.Entities.Where(x => (x.ComponentFlags & ComponentMasks.Player) == ComponentMasks.Player).FirstOrDefault();
             if (player != null)
             {
-                Rectangle playerDestination = playingState.PositionComponents[player.ID].Destination;
+                Rectangle playerDestination = playingState.AABBComponents[player.ID].BoundedBox;
                 followCamera.Update(gameTime, playerDestination, mapWidth, mapHeight);
             }
 
+            //update player aabb collisions
+            //AABBDetectionSystem.UpdateAABBPlayerCollision(playingState);
+
             //update movement
             PlayerInputSystem.HandlePlayerMovement(playingState, graphics, gameTime, keyboardState, mouseState, gamepadState, followCamera, levelRenderer.TileMap, levelCollisionDetection);
-            
-            //update player ai
-            AISystem.UpdateEnemeyAI(playingState);
 
+
+            //update player ai
+            AISystem.UpdateEnemeyAI(playingState, gameTime);
 
             //update projectiles
             ProjectileSystem.UpdateProjectiles(playingState);
 
             //handle projectile collision
-            AABBDetectionSystem.DetectAABBProjectileCollision(playingState);
+            //AABBDetectionSystem.DetectAABBProjectileCollision(playingState);
+
 
             //empty unused entities
             playingState.EntitiesToDelete.Clear();
@@ -243,15 +194,17 @@ namespace TwoDECS
         /// <param name="gameTime">Provides a snapshot of timing values.</param>
         protected override void Draw(GameTime gameTime)
         {
-            GraphicsDevice.Clear(Color.CornflowerBlue);
-            spriteBatch.Begin(samplerState: SamplerState.PointClamp, transformMatrix: followCamera.transform); 
+            GraphicsDevice.Clear(Color.Black);
+            spriteBatch.Begin(samplerState: SamplerState.PointClamp, transformMatrix: followCamera.transform);
 
             // TODO: Add your drawing code here
             levelRenderer.Draw(spriteBatch, spriteSheet, followCamera);
             
             DisplaySystem.DrawPlayingStateDisplayEntities(playingState, followCamera, spriteBatch, spriteSheet, graphics);
 
-            //DisplaySystem.DrawLevelObjects(playingState, spriteBatch, graphics.GraphicsDevice);
+
+            DisplaySystem.DrawEnemyLabelComponents(playingState, spriteBatch, spriteFont);
+            //DisplaySystem.DrawAABBComponents(playingState, spriteBatch, graphics.GraphicsDevice);
 
             spriteBatch.End();
             base.Draw(gameTime);

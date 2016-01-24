@@ -7,8 +7,21 @@ using TwoDECS.Engine.Components;
 
 namespace TwoDECS.Engine.Systems
 {
+
+    public struct Manifold
+    {
+        public Object a;
+        public Object b;
+        public float penetration;
+        public Vector2 normal;
+    }
+
     public static class AABBDetectionSystem
     {
+        public const float mass = 100;
+        public const float invmass = .01f;
+        public const float restitution = 0;
+
         public static bool RectCollision(Rectangle rect1, Rectangle rect2)
         {
             return rect1.Intersects(rect2);
@@ -41,19 +54,20 @@ namespace TwoDECS.Engine.Systems
                 //    }
                 //}
 
-                foreach (Guid enemeyid in enemyEntities)
+                foreach (Guid enemyid in enemyEntities)
                 {
-                    PositionComponent enemyPosition = playingState.PositionComponents[enemeyid];
-                    if (RectCollision(projectilePosition.Destination, enemyPosition.Destination))
+                    PositionComponent enemyPosition = playingState.PositionComponents[enemyid];
+                    AABBComponent aABBComponent = playingState.AABBComponents[enemyid];
+                    if (RectCollision(aABBComponent.BoundedBox, aABBComponent.BoundedBox))
                     {
-                        HealthComponent enemyHealthComponent = playingState.HealthComponents[enemeyid];
+                        HealthComponent enemyHealthComponent = playingState.HealthComponents[enemyid];
                         DamageComponent projectileDamageComponent = playingState.DamageComponents[projectileid];
 
                         enemyHealthComponent.Health -= projectileDamageComponent.Damage;
 
                         Console.WriteLine("Enemy Health: " + enemyHealthComponent.Health);
 
-                        playingState.HealthComponents[enemeyid] = enemyHealthComponent;
+                        playingState.HealthComponents[enemyid] = enemyHealthComponent;
                         EntitiesToRemove.Add(projectileid);
                     }
                 }
@@ -66,328 +80,158 @@ namespace TwoDECS.Engine.Systems
 
         }
 
-
-        // describes an axis-aligned rectangle with a velocity
-        public class Box
+        public static void UpdateAABBPlayerCollision(PlayingState playingState)
         {
-            public Box(float _x, float _y, float _w, float _h, float _vx, float _vy)
+            IEnumerable<Guid> playerEntities = playingState.Entities.Where(x => (x.ComponentFlags & ComponentMasks.Player) == ComponentMasks.Player).Select(x => x.ID);
+            IEnumerable<Guid> levelObjectEntities = playingState.Entities.Where(x => (x.ComponentFlags & ComponentMasks.LevelObjects) == ComponentMasks.LevelObjects).Select(x => x.ID);
+
+            //create aa non velocity component for our level objects
+            VelocityComponent levelObjectVelocityComponent = new VelocityComponent();
+            levelObjectVelocityComponent.xVelocity = 0f;
+            levelObjectVelocityComponent.yVelocity = 0f;
+
+            foreach (Guid playerid in playerEntities)
             {
-                x = _x;
-                y = _y;
-                w = _w;
-                h = _h;
-                vx = _vx;
-                vy = _vy;
+                AABBComponent playerAABBComponent = playingState.AABBComponents[playerid];
+                VelocityComponent playerVelocityComponent = playingState.VelocityComponents[playerid];
+
+                foreach (Guid lobjectid in levelObjectEntities)
+                {
+                    AABBComponent levelAABBComponent = playingState.AABBComponents[lobjectid];
+                    Manifold manifold = overlapAABB(playerAABBComponent.BoundedBox, playerVelocityComponent, levelAABBComponent.BoundedBox, levelObjectVelocityComponent);
+                    if (manifold.a != null)
+                    {
+                        resolveCollision(playerAABBComponent.BoundedBox, playerVelocityComponent, levelAABBComponent.BoundedBox, levelObjectVelocityComponent, manifold, playingState, playerid);
+                    }
+
+                }
             }
 
-            public Box(float _x, float _y, float _w, float _h)
+        }
+
+        public static bool AABBvsAABB(Rectangle a, Rectangle b)
+        {
+            if (a.Width < b.X || a.X > b.Width)
             {
-                x = _x;
-                y = _y;
-                w = _w;
-                h = _h;
-                vx = 0.0f;
-                vy = 0.0f;
-            }
-
-            // position of top-left corner
-            public float x, y;
-
-            // dimensions
-            public float w, h;
-
-            // velocity
-            public float vx, vy;
-        }
-
-        // returns true if the boxes are colliding (velocities are not used)
-        public static bool AABBCheck(Box b1, Box b2)
-        {
-            return !(b1.x + b1.w < b2.x || b1.x > b2.x + b2.w || b1.y + b1.h < b2.y || b1.y > b2.y + b2.h);
-        }
-
-        // returns true if the boxes are colliding (velocities are not used)
-        // moveX and moveY will return the movement the b1 must move to avoid the collision
-        public static bool AABB(Box b1, Box b2, out float moveX, out float moveY)
-        {
-            moveX = moveY = 0.0f;
-
-            float l = b2.x - (b1.x + b1.w);
-            float r = (b2.x + b2.w) - b1.x;
-            float t = b2.y - (b1.y + b1.h);
-            float b = (b2.y + b2.h) - b1.y;
-
-            // check that there was a collision
-            if (l > 0 || r < 0 || t > 0 || b < 0)
                 return false;
+            }
 
-            // find the offset of both sides
-            moveX = Math.Abs(l) < r ? l : r;
-            moveY = Math.Abs(t) < b ? t : b;
-
-            // only use whichever offset is the smallest
-            if (Math.Abs(moveX) < Math.Abs(moveY))
-                moveX = 0.0f;
-            else
-                moveY = 0.0f;
+            if (a.Height < b.Y || a.Y > b.Height)
+            {
+                return false;
+            }
 
             return true;
         }
 
-        // returns a box the spans both a current box and the destination box
-        public static Box GetSweptBroadphaseBox(Box b)
+        public static Manifold overlapAABB(Rectangle a, VelocityComponent velocityA, Rectangle b, VelocityComponent velocityB)
         {
-            Box broadphasebox = new Box(0.0f, 0.0f, 0.0f, 0.0f);
+            Manifold manifold = new Manifold();
+            manifold.a = a;
+            manifold.b = b;
 
-            broadphasebox.x = b.vx > 0 ? b.x : b.x + b.vx;
-            broadphasebox.y = b.vy > 0 ? b.y : b.y + b.vy;
-            broadphasebox.w = b.vx > 0 ? b.vx + b.w : b.w - b.vx;
-            broadphasebox.h = b.vy > 0 ? b.vy + b.h : b.h - b.vy;
+            // vectrom from a to b
+            Vector2 normal = new Vector2(b.X - a.X, b.Y - a.Y);
 
-            return broadphasebox;
-        }
+            //calculate half extents along x axis for each object
+            float a_extent = (a.Width - a.X) / 2;
+            float b_extent = (b.Width - b.X) / 2;
 
-        // performs collision detection on moving box b1 and static box b2
-        // returns the time that the collision occured (where 0 is the start of the movement and 1 is the destination)
-        // getting the new position can be retrieved by box.x = box.x + box.vx * collisiontime
-        // normalx and normaly return the normal of the collided surface (this can be used to do a response)
-        public static float SweptAABB(Box b1, Box b2, out float normalx, out float normaly)
-        {
-            float xInvEntry, yInvEntry;
-            float xInvExit, yInvExit;
+            //calculate overlap on x axis
+            var x_overlap = a_extent + b_extent - Math.Abs(normal.X);
 
-            // find the distance between the objects on the near and far sides for both x and y
-            if (b1.vx > 0.0f)
+            // SAT test on x axis
+            if (x_overlap > 0)
             {
-                xInvEntry = b2.x - (b1.x + b1.w);
-                xInvExit = (b2.x + b2.w) - b1.x;
-            }
-            else
-            {
-                xInvEntry = (b2.x + b2.w) - b1.x;
-                xInvExit = b2.x - (b1.x + b1.w);
-            }
+                a_extent = (a.Height - a.X) / 2;
+                b_extent = (b.Height - b.X) / 2;
 
-            if (b1.vy > 0.0f)
-            {
-                yInvEntry = b2.y - (b1.y + b1.h);
-                yInvExit = (b2.y + b2.h) - b1.y;
-            }
-            else
-            {
-                yInvEntry = (b2.y + b2.h) - b1.y;
-                yInvExit = b2.y - (b1.y + b1.h);
-            }
+                //calculate overlap on y axes
+                var y_overlap = a_extent + b_extent - Math.Abs(normal.Y);
 
-            // find time of collision and time of leaving for each axis (if statement is to prevent divide by zero)
-            float xEntry, yEntry;
-            float xExit, yExit;
-
-            if (b1.vx == 0.0f)
-            {
-                xEntry = -float.PositiveInfinity;
-                xExit = float.PositiveInfinity;
-            }
-            else
-            {
-                xEntry = xInvEntry / b1.vx;
-                xExit = xInvExit / b1.vx;
-            }
-
-            if (b1.vy == 0.0f)
-            {
-                yEntry = -float.PositiveInfinity;
-                yExit = float.PositiveInfinity;
-            }
-            else
-            {
-                yEntry = yInvEntry / b1.vy;
-                yExit = yInvExit / b1.vy;
-            }
-
-            if (yEntry > 1.0f) yEntry = -float.NegativeInfinity;
-            if (xEntry > 1.0f) xEntry = -float.NegativeInfinity;
-
-            // find the earliest/latest times of collision
-            float entryTime = Math.Max(xEntry, yEntry);
-            float exitTime = Math.Min(xExit, yExit);
-
-            // if there was no collision
-            //if (entryTime > exitTime || xEntry < 0.0f && yEntry < 0.0f || xEntry > 1.0f || yEntry > 1.0f)
-            //{
-            //    normalx = 0.0f;
-            //    normaly = 0.0f;
-            //    return 1.0f;
-            //}
-
-
-            if (entryTime > exitTime)
-            {
-
-                normalx = 0.0f;
-                normaly = 0.0f;
-                return 1.0f;
-            }
-            if (xEntry < 0.0f && yEntry < 0.0f){ 
-                
-                normalx = 0.0f;
-                normaly = 0.0f;
-                return 1.0f;
-            }
-            if (xEntry < 0.0f)
-            {
-                // Check that the bounding box started overlapped or not.
-                if (b1.w < b2.x || b1.x > b2.w)
+                // SAT test on y axis
+                if (y_overlap > 0)
                 {
-
-                    normalx = 0.0f;
-                    normaly = 0.0f;
-                    return 1.0f;
-                }
-            }
-            if (yEntry < 0.0f)
-            {
-                // Check that the bounding box started overlapped or not.
-                if (b1.h < b2.y || b1.y > b2.h)
-                {
-                    normalx = 0.0f;
-                    normaly = 0.0f;
-                    return 1.0f;
-                };
-            }
-
-
-            //else // if there was a collision
-            //{
-                // calculate normal of collided surface
-                if (xEntry > yEntry)
-                {
-                    if (xInvEntry < 0.0f)
+                    // Find out which axis is axis of least penetration
+                    if (x_overlap < y_overlap)
                     {
-                        normalx = 1.0f;
-                        normaly = 0.0f;
-                    }
-                    else
-                    {
-                        normalx = -1.0f;
-                        normaly = 0.0f;
-                    }
-                }
-                else
-                {
-                    if (yInvEntry < 0.0f)
-                    {
-                        normalx = 0.0f;
-                        normaly = 1.0f;
-                    }
-                    else
-                    {
-                        normalx = 0.0f;
-                        normaly = -1.0f;
-                    }
-                }
-
-                // return the time of collision
-                return entryTime;
-            //}
-        }
-
-        public static void DetectAABBPlayerCollision(PlayingState playingState)
-        {
-            IEnumerable<Guid> playerEntities = playingState.Entities.Where(x => (x.ComponentFlags & ComponentMasks.Player) == ComponentMasks.Player).Select(x => x.ID);
-            IEnumerable<Guid> levelObjects = playingState.Entities.Where(x => (x.ComponentFlags & ComponentMasks.LevelObjects) == ComponentMasks.LevelObjects).Select(x => x.ID);
-
-            foreach (Guid playerid in playerEntities)
-            {
-                foreach (Guid levelobjectid in levelObjects)
-                {
-                    PositionComponent playerPositionComponent = playingState.PositionComponents[playerid];
-                    VelocityComponent playerSpeedComponent = playingState.VelocityComponents[playerid];
-
-                    PositionComponent levelObjectPostionComponent = playingState.PositionComponents[levelobjectid];
-
-
-                    Box playerbox = new Box(playerPositionComponent.Destination.X, playerPositionComponent.Destination.Y, playerPositionComponent.Destination.Width, playerPositionComponent.Destination.Height, playerSpeedComponent.xVelocity, playerSpeedComponent.yVelocity);
-                    Box levelbox = new Box(levelObjectPostionComponent.Destination.X, levelObjectPostionComponent.Destination.Y, levelObjectPostionComponent.Destination.Width, levelObjectPostionComponent.Destination.Height, 0f, 0f);
-
-                    Box broadphasebox = GetSweptBroadphaseBox(playerbox);
-                    if (AABBCheck(broadphasebox, levelbox))
-                    {
-
-                        float normalx, normaly;
-                        float collisiontime = SweptAABB(playerbox, levelbox, out normalx, out normaly);
-                        playerbox.x += playerbox.vx * collisiontime;
-                        playerbox.y += playerbox.vy * collisiontime;
-
-                        float remainingtime = 1.0f - collisiontime;
-
-                        if (remainingtime < 1.0f)
+                        // point towards b knowing that dist points from a to b
+                        if (normal.X < 0)
                         {
-                            playerSpeedComponent.xVelocity *= normalx;
-                            playerSpeedComponent.yVelocity *= normaly;
-
-                            Console.WriteLine(playerSpeedComponent.xVelocity);
-                            Console.WriteLine(playerSpeedComponent.yVelocity);
-
-
-                            playerPositionComponent.Destination = new Rectangle((int)playerbox.x, (int)playerbox.y, (int)playerbox.w, (int)playerbox.h);
-                            playerPositionComponent.Position = new Vector2(playerbox.x, playerbox.y);
-                            playingState.PositionComponents[playerid] = playerPositionComponent;
-                            playingState.VelocityComponents[playerid] = playerSpeedComponent;
+                            manifold.normal = new Vector2(-1, 0);
                         }
+                        else
+                        {
+                            manifold.normal = new Vector2(1, 0);
+                        }
+                        manifold.penetration = x_overlap;
+                        return manifold;
                     }
-
-                    //    playerPositionComponent.Destination = playerBoundedBox;
-                    //    playingState.PositionComponents[playerid] = playerPositionComponent;
-                    //}
+                    else
+                    {
+                        // Point toward B knowing that dist points from A to B
+                        if (normal.Y < 0)
+                        {
+                            manifold.normal = new Vector2(0, -1);
+                        }
+                        else
+                        {
+                            manifold.normal = new Vector2(0, 1);
+                        }
+                        manifold.penetration = y_overlap;
+                        return manifold;
+                    }
                 }
             }
+            return new Manifold();
         }
 
-        //public static void DetectAABBPlayerCollision(PlayingState playingState)
-        //{
-        //    IEnumerable<Guid> playerEntities = playingState.Entities.Where(x => (x.ComponentFlags & ComponentMasks.Player) == ComponentMasks.Player).Select(x => x.ID);
-        //    IEnumerable<Guid> levelObjects = playingState.Entities.Where(x => (x.ComponentFlags & ComponentMasks.LevelObjects) == ComponentMasks.LevelObjects).Select(x => x.ID);
+        public static float DotProduct(Vector2 vrelative, Vector2 normal)
+        {
+            return (vrelative.X * normal.X + vrelative.Y * normal.Y);
+        }
 
-        //    foreach (Guid playerid in playerEntities)
-        //    {
-        //        foreach (Guid levelobjectid in levelObjects)
-        //        {
-        //            PositionComponent playerPositionComponent = playingState.PositionComponents[playerid];
-        //            VelocityComponent playerSpeedComponent = playingState.VelocityComponents[playerid];
+        public static void resolveCollision(Rectangle a, VelocityComponent velocityA, Rectangle b, VelocityComponent velocityB, Manifold m, PlayingState playingState, Guid aid, Guid? bid = null)
+        {
+            // calculate relative velocity
+            Vector2 rv = new Vector2(velocityB.xVelocity - velocityA.xVelocity, velocityB.yVelocity - velocityA.yVelocity);
 
-        //            PositionComponent levelObjectPostionComponent = playingState.PositionComponents[levelobjectid];
-        //            if(playerPositionComponent.Destination.Intersects(levelObjectPostionComponent.Destination))
-        //            {
-        //                //determin which way we entered the rectangle and reset our position
+            //calculate relative velocity in terms of normal direction
+            var velAlongNormal = DotProduct(rv, m.normal);
 
-        //                //we are going left
-        //                if(playerSpeedComponent.xVelocity < 0){
-        //                    playerPositionComponent.Position.X = levelObjectPostionComponent.Destination.Right;
-        //                    playerPositionComponent.Destination.X = levelObjectPostionComponent.Destination.Right;
-        //                }
-        //                else if(playerSpeedComponent.xVelocity > 0) // we are going right
-        //                {                            
-        //                    playerPositionComponent.Position.X = levelObjectPostionComponent.Destination.Left - playerPositionComponent.Destination.Width;
-        //                    playerPositionComponent.Destination.X = levelObjectPostionComponent.Destination.Left - playerPositionComponent.Destination.Width;
-        //                }
+            //do not resolve if velocities are seperating
+            if (velAlongNormal > 0)
+            {
+                return;
+            }
 
-        //                //going up
-        //                if(playerSpeedComponent.yVelocity < 0)
-        //                {
-        //                    playerPositionComponent.Position.Y = levelObjectPostionComponent.Destination.Bottom;
-        //                    playerPositionComponent.Destination.Y = levelObjectPostionComponent.Destination.Bottom;
-        //                }
-        //                else if(playerSpeedComponent.yVelocity > 0)
-        //                {
-        //                    playerPositionComponent.Position.Y = levelObjectPostionComponent.Destination.Top - playerPositionComponent.Destination.Height;
-        //                    playerPositionComponent.Destination.Y = levelObjectPostionComponent.Destination.Top - playerPositionComponent.Destination.Height;
-        //                }
-        //            }
+            //calculate restitution
+            var e = Math.Min(restitution, restitution);
 
-        //            playingState.PositionComponents[playerid] = playerPositionComponent;
-        //        }
-        //    }
-        //}
+            //calculate impulse scaler
+            var j = -(1 + e) * velAlongNormal;
+            j /= invmass + invmass;
+
+            // Apply impulse
+            Vector2 _impulse = new Vector2(m.normal.X * j, m.normal.Y * j);
+
+            velocityA.xVelocity -= (invmass * _impulse.X);
+            velocityA.yVelocity -= (invmass * _impulse.Y);
+
+            velocityB.xVelocity += (invmass * _impulse.X);
+            velocityB.yVelocity += (invmass * _impulse.Y);
+
+            playingState.VelocityComponents[aid] = velocityA;
+
+            if (bid != null)
+            {
+                playingState.VelocityComponents[(Guid)bid] = velocityB;
+            }
+
+            //float percent = .8f;
+            //float slop = .01f;
+            //var c = Math.Max(m.penetration - slop, 0) / (invmass + invmass) * percent * m.normal;
+            //there is like some position shit that should go here but i dont know what
+        }
     }
 }

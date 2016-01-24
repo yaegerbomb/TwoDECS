@@ -28,8 +28,9 @@ namespace TwoDECS.Engine.Systems
                 var directionComponent = playingState.DirectionComponents[id];
 
                 var positionComponent = playingState.PositionComponents[id];
+                var aabbComponent = playingState.AABBComponents[id];
                 Vector2 position = positionComponent.Position;
-                Rectangle destination = positionComponent.Destination;
+                Rectangle boundedBox = aabbComponent.BoundedBox;
 
                 VelocityComponent velocityComponent = playingState.VelocityComponents[id];
 
@@ -50,20 +51,18 @@ namespace TwoDECS.Engine.Systems
                 {
                     velocityComponent.xVelocity -= accelerationComponent.xAcceleration;
                     velocityComponent.xVelocity = MathHelper.Clamp(velocityComponent.xVelocity, -1 * velocityComponent.xTerminalVelocity, 0);
-
-
-                    position.X += velocityComponent.xVelocity;
-                    position = levelCollisionDetection.CheckWallCollision(position, Direction.Left);
+                    
+                    boundedBox.X += (int)velocityComponent.xVelocity;
+                    boundedBox = levelCollisionDetection.CheckWallCollision(boundedBox, Direction.Left);
                 }
 
                 if (CurrentKeyboardState.IsKeyDown(Keys.Right) || CurrentKeyboardState.IsKeyDown(Keys.D) || currentGamePadState.DPad.Right == ButtonState.Pressed)
                 {
                     velocityComponent.xVelocity += accelerationComponent.xAcceleration;
                     velocityComponent.xVelocity = MathHelper.Clamp(velocityComponent.xVelocity, 0, velocityComponent.xTerminalVelocity);
-
-
-                    position.X += velocityComponent.xVelocity;
-                    position = levelCollisionDetection.CheckWallCollision(position, Direction.Right);
+                                        
+                    boundedBox.X += (int)velocityComponent.xVelocity;
+                    boundedBox = levelCollisionDetection.CheckWallCollision(boundedBox, Direction.Right);
                 }
 
                 //move player x axis
@@ -75,11 +74,9 @@ namespace TwoDECS.Engine.Systems
 
                     velocityComponent.yVelocity -= accelerationComponent.yAcceleration;
                     velocityComponent.yVelocity  = MathHelper.Clamp(velocityComponent.yVelocity, -1 * velocityComponent.yTerminalVelocity, 0 );
-
-                    position.Y += velocityComponent.yVelocity;
-
-
-                    position = levelCollisionDetection.CheckWallCollision(position, Direction.Up);
+                    
+                    boundedBox.Y += (int)velocityComponent.yVelocity;
+                    boundedBox = levelCollisionDetection.CheckWallCollision(boundedBox, Direction.Up);
                 }
 
 
@@ -90,7 +87,8 @@ namespace TwoDECS.Engine.Systems
                     velocityComponent.yVelocity = MathHelper.Clamp(velocityComponent.yVelocity, 0, velocityComponent.yTerminalVelocity);
                     position.Y += velocityComponent.yVelocity;
 
-                    position = levelCollisionDetection.CheckWallCollision(position, Direction.Down);
+                    boundedBox.Y += (int)velocityComponent.yVelocity;
+                    boundedBox = levelCollisionDetection.CheckWallCollision(boundedBox, Direction.Down);
                 }
 
                 if (CurrentKeyboardState.IsKeyUp(Keys.Down) && CurrentKeyboardState.IsKeyUp(Keys.S) && CurrentKeyboardState.IsKeyUp(Keys.Up) && CurrentKeyboardState.IsKeyUp(Keys.W))
@@ -112,7 +110,7 @@ namespace TwoDECS.Engine.Systems
 
                 MouseState currentMouseState = Mouse.GetState();
 
-                destination = new Rectangle((int)position.X, (int)position.Y, destination.Width, destination.Height);
+                position = new Vector2(boundedBox.X + (boundedBox.Width / 2), boundedBox.Y + (boundedBox.Height / 2));
 
                 Vector2 mouseLocation = new Vector2(currentMouseState.X + followCam.Center.X, currentMouseState.Y + followCam.Center.Y);
 
@@ -157,9 +155,9 @@ namespace TwoDECS.Engine.Systems
                 playingState.DirectionComponents[id] = directionComponent;
 
                 positionComponent.Position = position;
-                positionComponent.Destination = destination;
+                aabbComponent.BoundedBox = boundedBox;
                 playingState.PositionComponents[id] = positionComponent;
-
+                playingState.AABBComponents[id] = aabbComponent;
                 playingState.VelocityComponents[id] = velocityComponent;
                 playingState.AccelerationComponents[id] = accelerationComponent;
             }

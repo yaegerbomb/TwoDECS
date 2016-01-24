@@ -27,7 +27,8 @@ namespace TwoDECS.Engine
         COMPONENT_AI = 1 << 13,
         COMPONENT_ACCELERATION = 1 << 14,
         COMPONENT_BLOCK = 1 << 15,
-        COMPONENT_DEBUG = 1 << 16
+        COMPONENT_DEBUG = 1 << 16,
+        COMPONENT_LABEL = 1 << 17
     }
 
     public struct ComponentMasks
@@ -38,7 +39,7 @@ namespace TwoDECS.Engine
         #endregion
 
         #region enemy components
-        public const Component Enemy = Component.COMPONENT_DIRECTION | Component.COMPONENT_DISPLAY | Component.COMPONENT_HEALTH | Component.COMPONENT_POSITION | Component.COMPONENT_VELOCITY | Component.COMPONENT_AABB | Component.COMPONENT_DAMAGE | Component.COMPONENT_AI | Component.COMPONENT_ACCELERATION;
+        public const Component Enemy = Component.COMPONENT_DIRECTION | Component.COMPONENT_DISPLAY | Component.COMPONENT_HEALTH | Component.COMPONENT_POSITION | Component.COMPONENT_VELOCITY | Component.COMPONENT_AABB | Component.COMPONENT_DAMAGE | Component.COMPONENT_AI | Component.COMPONENT_ACCELERATION | Component.COMPONENT_LABEL;
         #endregion
 
 
@@ -64,6 +65,8 @@ namespace TwoDECS.Engine
         public Dictionary<Guid, DamageComponent> DamageComponents { get; set; }
         public Dictionary<Guid, AccelerationComponent> AccelerationComponents { get; set; }
         public Dictionary<Guid, AIComponent> AIComponents { get; set; }
+        public Dictionary<Guid, LabelComponent> LabelComponents { get; set; }
+        public Dictionary<Guid, AABBComponent> AABBComponents { get; set; }
 
         public PlayingState()
         {
@@ -79,6 +82,8 @@ namespace TwoDECS.Engine
             DamageComponents = new Dictionary<Guid, DamageComponent>();
             AccelerationComponents = new Dictionary<Guid, AccelerationComponent>();
             AIComponents = new Dictionary<Guid, AIComponent>();
+            LabelComponents = new Dictionary<Guid, LabelComponent>();
+            AABBComponents = new Dictionary<Guid, AABBComponent>();
         }        
 
         public Guid CreateEntity()

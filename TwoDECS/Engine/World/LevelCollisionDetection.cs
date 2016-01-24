@@ -26,7 +26,7 @@ namespace TwoDECS.Engine.World
             this.TileSize = tileSize;
         }
 
-        public Vector2 CheckWallCollision(Vector2 position, Direction direction)
+        public Rectangle CheckWallCollision(Rectangle boundedBox, Direction direction)
         {
             //normalize position to account for new origin (center of sprite)
 
@@ -36,25 +36,30 @@ namespace TwoDECS.Engine.World
                 {
                     break;
                 }
-                for(int y = 0; y < TileMap.ColumnCount; y++){
+                for (int y = 0; y < TileMap.ColumnCount; y++)
+                {
+                    if (Finished)
+                    {
+                        break;
+                    }
                     Tile tile = TileMap.Map[x,y];
                     if (tile.Type == TileType.Solid)
                     {
-                        if (((position.X + TileSize) > tile.TilePosition.X) && (position.X < (tile.TilePosition.X + TileSize)) && (position.Y + TileSize) > tile.TilePosition.Y && position.Y < (tile.TilePosition.Y + TileSize))
+                        if (((boundedBox.X + TileSize) > tile.TilePosition.X) && (boundedBox.X < (tile.TilePosition.X + TileSize)) && (boundedBox.Y + TileSize) > tile.TilePosition.Y && boundedBox.Y < (tile.TilePosition.Y + TileSize))
                         {
                             switch (direction)
                             {
                                 case Direction.Up:
-                                    position.Y = (tile.TilePosition.Y + TileSize);
+                                    boundedBox.Y = ((int)tile.TilePosition.Y + TileSize);
                                     break;
                                 case Direction.Right:
-                                    position.X = (tile.TilePosition.X - TileSize);
+                                    boundedBox.X = ((int)tile.TilePosition.X - TileSize);
                                     break;
                                 case Direction.Down:
-                                    position.Y = (tile.TilePosition.Y - TileSize);
+                                    boundedBox.Y = ((int)tile.TilePosition.Y - TileSize);
                                     break;
                                 case Direction.Left:
-                                    position.X = (tile.TilePosition.X + TileSize);
+                                    boundedBox.X = ((int)tile.TilePosition.X + TileSize);
                                     break;
                             }
                             Finished = true;
@@ -62,7 +67,7 @@ namespace TwoDECS.Engine.World
                     }
                 }
             }
-            return position;
+            return boundedBox;
         }
 
         public bool CheckBulletToWallCollision(Vector2 position)
