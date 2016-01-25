@@ -23,6 +23,23 @@ namespace TwoDECS.Engine.Systems
             }
         }
 
+        public static void DrawEnemyNeighbors(PlayingState playingState, SpriteBatch spriteBatch, Texture2D spriteSheet, GraphicsDevice graphicsDevice)
+        {
+            Texture2D rect = new Texture2D(graphicsDevice, 80, 30);
+
+            Color[] data = new Color[80 * 30];
+            for (int i = 0; i < data.Length; ++i) data[i] = Color.Violet;
+            rect.SetData(data);
+
+            IEnumerable<Guid> enemies = playingState.Entities.Where(x => (x.ComponentFlags & ComponentMasks.Enemy) == ComponentMasks.Enemy).Select(x => x.ID);
+            foreach (Guid enemyid in enemies)
+            {
+                var position = playingState.PositionComponents[enemyid].Position;
+                var lineOfSite = playingState.AIComponents[enemyid].LineOfSite;
+                Rectangle neighborBoundedBox = new Rectangle((int)(position.X - (lineOfSite)), (int)(position.Y - (lineOfSite)), lineOfSite * 2, lineOfSite * 2);
+                spriteBatch.Draw(rect, neighborBoundedBox, Color.White);
+            }
+        }
 
         public static void DrawAABBComponents(PlayingState playingState, SpriteBatch spriteBatch, GraphicsDevice graphicsDevice)
         {
@@ -48,9 +65,20 @@ namespace TwoDECS.Engine.Systems
 
             foreach (Guid enemyid in enemyEntities)
             {
-                spriteBatch.DrawString(spriteFont, playingState.LabelComponents[enemyid].Label, playingState.LabelComponents[enemyid].Position, Color.Black);
+                spriteBatch.DrawString(spriteFont, playingState.LabelComponents[enemyid].Label, playingState.PositionComponents[enemyid].Position, Color.Black);
             }
 
+        }
+
+
+        public static void DrawLine(SpriteBatch batch, float width, Color color, Vector2 point1, Vector2 point2, GraphicsDevice graphics)
+        {
+            Texture2D blank = new Texture2D(graphics, 1, 1, false, SurfaceFormat.Color);
+            blank.SetData(new[] { Color.White });
+            float angle = (float)Math.Atan2(point2.Y - point1.Y, point2.X - point1.X);
+            float length = Vector2.Distance(point1, point2);
+
+            batch.Draw(blank, point1, null, color, angle, Vector2.Zero, new Vector2(length, width), SpriteEffects.None, 0);
         }
     }
 }

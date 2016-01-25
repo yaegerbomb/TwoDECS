@@ -15,7 +15,7 @@ namespace TwoDECS.Engine.Systems
         static float timer = 1;         //Initialize a 10 second timer
         const float TIMER = .2f;
 
-        public static void AttackPlayer(Guid EnemyID, AIComponent enemyAIComponent, PlayingState playingState)
+        public static void AttackPlayer(Guid EnemyID, AIComponent enemyAIComponent, PlayingState playingState, Tile[,] tiles)
         {
             //determine if the player is in line of site
             IEnumerable<Guid> playerEntities = playingState.Entities.Where(x => (x.ComponentFlags & ComponentMasks.Player) == ComponentMasks.Player).Select(x => x.ID);
@@ -28,18 +28,23 @@ namespace TwoDECS.Engine.Systems
                 //{
                 //    //do something
                 //}
-                bool playerSeen = LineOfSiteRayCast.CalculateLineOfSight(playingState.PositionComponents[EnemyID].Position, playingState.PositionComponents[playerid].Position, enemyAIComponent.LineOfSite, playingState.DirectionComponents[EnemyID].Direction, playingState);
-                if (playerSeen)
+                if (enemyAIComponent.ActiveState.Peek() != AIState.ATTACK)
                 {
-                    //we see the player
-                    LabelComponent labelComponent = playingState.LabelComponents[EnemyID];
-                    labelComponent.Label = "!!!";
-                    playingState.LabelComponents[EnemyID] = labelComponent;
-                    Point startingPoint = playingState.PositionComponents[EnemyID].Position.ToPoint();
-                    Point endingPoint = playingState.PositionComponents[playerid].Position.ToPoint();
-                    int width = playingState.AABBComponents[EnemyID].BoundedBox.Width;
-                    int height = playingState.AABBComponents[EnemyID].BoundedBox.Height;
-                    enemyAIComponent.ActivePath = enemyAIComponent.Astar.Search(new Point(startingPoint.X / width, startingPoint.Y / height), new Point(endingPoint.X / width, endingPoint.Y / height), null);
+                    bool playerSeen = LineOfSiteRayCast.CalculateLineOfSight(playingState.PositionComponents[EnemyID].Position, playingState.PositionComponents[playerid].Position, enemyAIComponent.LineOfSite, playingState.DirectionComponents[EnemyID].Direction, playingState, tiles);
+                    if (playerSeen)
+                    {
+                        //we see the player
+                        LabelComponent labelComponent = playingState.LabelComponents[EnemyID];
+                        labelComponent.Label = "!!!";
+                        playingState.LabelComponents[EnemyID] = labelComponent;
+                        Point startingPoint = playingState.PositionComponents[EnemyID].Position.ToPoint();
+                        Point endingPoint = playingState.PositionComponents[playerid].Position.ToPoint();
+                        int width = playingState.AABBComponents[EnemyID].BoundedBox.Width;
+                        int height = playingState.AABBComponents[EnemyID].BoundedBox.Height;
+                        enemyAIComponent.ActivePath = enemyAIComponent.Astar.Search(new Point(startingPoint.X / width, startingPoint.Y / height), new Point(endingPoint.X / width, endingPoint.Y / height), null);
+                        enemyAIComponent.ActiveState.Push(AIState.ATTACK);
+                        playingState.AIComponents[EnemyID] = enemyAIComponent;
+                    }
                 }
             }
 
@@ -225,7 +230,7 @@ namespace TwoDECS.Engine.Systems
 
 
 
-        public static void UpdateEnemeyAI(PlayingState playingState, GameTime gameTime)
+        public static void UpdateEnemeyAI(PlayingState playingState, GameTime gameTime, Tile[,] tiles)
         {
             float elapsed = (float)gameTime.ElapsedGameTime.TotalSeconds;
             bool CheckWherePlayerIs = false;
@@ -263,7 +268,7 @@ namespace TwoDECS.Engine.Systems
 
                 if (CheckWherePlayerIs)
                 {
-                    AttackPlayer(enemyid, enemyAI, playingState);
+                    AttackPlayer(enemyid, enemyAI, playingState, tiles);
                 }
             }
 

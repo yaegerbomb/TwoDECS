@@ -1,9 +1,11 @@
 ﻿using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using TwoDECS.Engine.Components;
 using TwoDECS.Engine.World;
 
 namespace TwoDECS.Engine.Algorithms
@@ -11,56 +13,49 @@ namespace TwoDECS.Engine.Algorithms
         
     public static class LineOfSiteRayCast
     {
-        public static bool CalculateLineOfSight(Vector2 position, Vector2 positionToCheck, float lineOfSite, float direction, PlayingState playingState)
+        public static bool CalculateLineOfSight(Vector2 position, Vector2 positionToCheck, float lineOfSite, float direction, PlayingState playingState, Tile[,] tiles)
         {            
-            //Texture2D blank = new Texture2D(graphics, 1, 1, false, SurfaceFormat.Color);
-            //blank.SetData(new[] { Color.White });
-
             var degree = direction * (180 / Math.PI);
             var lowerDegree = degree - 45;
             var higherDegree = degree + 45;
 
             if (lowerDegree > higherDegree)
             {
-                var temp = lowerDegree;
-                lowerDegree = higherDegree;
-                higherDegree = temp;
+                Swap(ref lowerDegree, ref higherDegree);
             }
 
             var higherRadian = higherDegree * (Math.PI / 180);
             Vector2 higherPoint = RotateVector2(new Vector2(position.X + lineOfSite, position.Y), (float)higherRadian, position);
 
-            var lowerTracker = lowerDegree;
 
             Rectangle positionToCheckRect = new Rectangle((int)positionToCheck.X, (int)positionToCheck.Y, 16, 16);
 
+            //get neighboring squares by bounded box
+            Rectangle neighborBoundedBox = new Rectangle((int)(position.X - (lineOfSite)), (int)(position.Y - (lineOfSite)), (int)(lineOfSite * 2), (int)(lineOfSite * 2));
+
+            IEnumerable<Guid> levelObjectEntities = playingState.Entities.Where(x => (x.ComponentFlags & ComponentMasks.LevelObjects) == ComponentMasks.LevelObjects).Select(x => x.ID);
+            List<Rectangle> levelAABBBoundedRects = playingState.AABBComponents.Where(a => levelObjectEntities.Contains(a.Key) && a.Value.BoundedBox.Intersects(neighborBoundedBox)).Select(x => x.Value).Select(s => s.BoundedBox).ToList();
+
+
+            var lowerTracker = lowerDegree;
             while (lowerTracker <= higherDegree)
             {
                 //get if there is anything between our origina and lower tracker
                 var lowerRadian = lowerTracker * (Math.PI / 180);
                 Vector2 lowerPoint = RotateVector2(new Vector2(position.X + lineOfSite, position.Y), (float)lowerRadian, position);
 
-                //DrawLine(spriteBatch, blank, 1f, Color.ForestGreen, position, lowerPoint); ;
-                
-                var collision = CheckIfPointOnLineIntersectsRect(position.X, position.Y, lowerPoint.X, lowerPoint.Y, positionToCheckRect);
+                var collision = CheckIfPointOnLineIntersectsRect(position.X, position.Y, lowerPoint.X, lowerPoint.Y, position, positionToCheckRect, playingState, levelAABBBoundedRects);
                 if (collision)
                 {
                     return true;
                 }
-                lowerTracker++;
+                lowerTracker+=5;
             }
 
             return false;
 
         }
 
-        static void DrawLine(SpriteBatch batch, Texture2D blank, float width, Color color, Vector2 point1, Vector2 point2)
-        {
-            float angle = (float)Math.Atan2(point2.Y - point1.Y, point2.X - point1.X);
-            float length = Vector2.Distance(point1, point2);
-
-            batch.Draw(blank, point1, null, color, angle, Vector2.Zero, new Vector2(length, width), SpriteEffects.None, 0);
-        }
 
         public static Vector2 RotateVector2(Vector2 point, float radians, Vector2 pivot)
         {
@@ -78,19 +73,18 @@ namespace TwoDECS.Engine.Algorithms
             return rotatedPoint;
         }
 
-
-        static void Swap<T>(ref T a, ref T b)
+        public static void Swap<T>(ref T a, ref T b)
         {
             T temp = a;
             a = b;
             b = temp;
         }
 
-        static bool CheckIfPointOnLineIntersectsRect(float x1, float y1, float x2, float y2, Rectangle rectangle)
+        public static bool CheckIfPointOnLineIntersectsRect(float x1, float y1, float x2, float y2, Vector2 startingPosition, Rectangle rectangle, PlayingState playingState, List<Rectangle> levelAABBComponents)
         {
             List<Vector2> IntersecetionPointsToCheck = new List<Vector2>();
 
-            // Bresenham's line algorithm
+            // Bresenham's line algorithm - get all the point on the line between our 2 points
             bool steep = (Math.Abs(y2 - y1) > Math.Abs(x2 - x1));
             if (steep)
             {
@@ -117,19 +111,11 @@ namespace TwoDECS.Engine.Algorithms
             {
                 if (steep)
                 {
-                    //check if we intersect
-                    //SetPixel(y,x, color);
-                    if(rectangle.Contains(y,x)){
-                        return true;
-                    }
+                    IntersecetionPointsToCheck.Add(new Vector2(y, x));
                 }
                 else
                 {
-                    //check if we intersect
-                    //SetPixel(x,y, color);
-                    if(rectangle.Contains(x,y)){
-                        return true;
-                    }
+                    IntersecetionPointsToCheck.Add(new Vector2(x, y));
                 }
 
                 error -= dy;
@@ -140,9 +126,76 @@ namespace TwoDECS.Engine.Algorithms
                 }
             }
 
+            //get the points that intersect with our wall
+            List<Vector2> pointThatCollidedWithWall = new List<Vector2>();
+            List<Vector2> pointThatCollidedWithPlayer = new List<Vector2>();
+
+            foreach (Vector2 point in IntersecetionPointsToCheck)
+            {
+                if (levelAABBComponents.Where(s => s.Contains(point)).Count() > 0)
+                {
+                    pointThatCollidedWithWall.Add(point);
+                }
+
+                if (rectangle.Contains(point))
+                {
+                    pointThatCollidedWithPlayer.Add(point);
+                }
+            }
+
+            //if we potentially hit a wall and a player we need to see if the distance from the wall is less than the distance from the player
+            //if we our wall wins, we dont see the player
+            if (pointThatCollidedWithWall.Count > 0 && pointThatCollidedWithPlayer.Count > 0)
+            {
+                //sort arrays by shorted distance from enemy
+                pointThatCollidedWithWall.Sort(delegate(Vector2 v1, Vector2 v2)
+                {
+                    if (Vector2.Distance(startingPosition, v1) < Vector2.Distance(startingPosition, v2))
+                    {
+                        return -1;
+                    }
+                    else
+                    {
+                        return 1;
+                    }
+                });
+
+                pointThatCollidedWithPlayer.Sort(delegate(Vector2 v1, Vector2 v2)
+                {
+                    if (Vector2.Distance(startingPosition, v1) < Vector2.Distance(startingPosition, v2))
+                    {
+                        return -1;
+                    }
+                    else
+                    {
+                        return 1;
+                    }
+                });
+
+                //because its easier....
+                Vector2 lowestDistanceFromWall = pointThatCollidedWithWall.First();
+                Vector2 LowestDistanceFromPlayer = pointThatCollidedWithPlayer.First();
+
+                if (lowestDistanceFromWall != Vector2.Zero && LowestDistanceFromPlayer != Vector2.Zero)
+                {
+                    //is our smallest wall distance less than our smallest player distance????
+                    if (Vector2.Distance(startingPosition, lowestDistanceFromWall) < Vector2.Distance(startingPosition, LowestDistanceFromPlayer))
+                    {
+                        //if our wall wins we dont see the player
+                        return false;
+                    }
+                }
+            }
+
+            //if we saw the player and we didnt see any walls than we saw the player
+            if (pointThatCollidedWithPlayer.Count > 0)
+            {
+                return true;
+            }
+
+
+            //we didnt see anything
             return false;
         }
-
-
-    }
+    }    
 }
