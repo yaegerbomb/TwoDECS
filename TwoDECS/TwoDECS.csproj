@@ -24,6 +24,7 @@
     <DefineConstants>DEBUG;TRACE;WINDOWS</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
+    <UseVSHostingProcess>false</UseVSHostingProcess>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|x86' ">
     <PlatformTarget>x86</PlatformTarget>
@@ -48,10 +49,12 @@
     <Compile Include="Engine\Components\AIComponent.cs" />
     <Compile Include="Engine\Components\ContainerComponent.cs" />
     <Compile Include="Engine\Components\DamageComponent.cs" />
+    <Compile Include="Engine\Components\DebugComponent.cs" />
     <Compile Include="Engine\Components\DirectionComponent.cs" />
     <Compile Include="Engine\Components\DisplayComponent.cs" />
     <Compile Include="Engine\Components\HealthComponent.cs" />
     <Compile Include="Engine\Components\LabelComponent.cs" />
+    <Compile Include="Engine\Components\MapObjectComponent.cs" />
     <Compile Include="Engine\Components\OwnerComponent.cs" />
     <Compile Include="Engine\Components\QuantityComponent.cs" />
     <Compile Include="Engine\Components\PositionComponent.cs" />
@@ -60,6 +63,7 @@
     <Compile Include="Engine\Entity.cs" />
     <Compile Include="Engine\Systems\AABBDetectionSystem.cs" />
     <Compile Include="Engine\Systems\AISystem.cs" />
+    <Compile Include="Engine\Systems\AI\AIPawnSystem.cs" />
     <Compile Include="Engine\Systems\DisplaySystem.cs" />
     <Compile Include="Engine\Systems\MouseInputSystem.cs" />
     <Compile Include="Engine\Systems\PlayerInputSystem.cs" />
@@ -73,6 +77,9 @@
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
+    <Reference Include="FluentBehaviourTree">
+      <HintPath>..\packages\FluentBehaviourTree.0.0.4.0\lib\net35\FluentBehaviourTree.dll</HintPath>
+    </Reference>
     <Reference Include="OpenTK">
       <HintPath>$(MSBuildProgramFiles32)\MonoGame\v3.0\Assemblies\WindowsGL\OpenTK.dll</HintPath>
     </Reference>
@@ -88,6 +95,27 @@
   </ItemGroup>
   <ItemGroup>
     <Content Include="Content\Graphics\UIpackSheet_transparent.png" />
+    <Content Include="Content\Music\Alien_Underworld.mp3" />
+    <Content Include="Content\Music\Chrysalis_Chamber.mp3" />
+    <Content Include="Content\Music\Dark Suspense.mp3" />
+    <Content Include="Content\Music\Derelict_Starship.mp3" />
+    <Content Include="Content\Music\Empty_City.mp3" />
+    <Content Include="Content\Music\Forbidden_Zone.mp3" />
+    <Content Include="Content\Music\Hatching_Grounds.mp3" />
+    <Content Include="Content\Music\Haunted Planet.mp3" />
+    <Content Include="Content\Music\Lonely Spaces.mp3" />
+    <Content Include="Content\Music\Lone_Explorer.mp3" />
+    <Content Include="Content\Music\Nebula_Cloud.mp3" />
+    <Content Include="Content\Music\Outer_Reaches.mp3" />
+    <Content Include="Content\Music\Predator.mp3" />
+    <Content Include="Content\Music\Radioactive_Wastes.mp3" />
+    <Content Include="Content\Music\Replicant_Police.mp3" />
+    <Content Include="Content\Music\Scanner_Sweep.mp3" />
+    <Content Include="Content\Music\Sinister Cellar.mp3" />
+    <Content Include="Content\Music\Technoquirk.mp3" />
+    <Content Include="Content\Music\Trapped and Hating It.mp3" />
+    <Content Include="Content\Music\Uncharted_Reaches.mp3" />
+    <Content Include="Content\Music\Xenomorphs.mp3" />
     <Content Include="Icon.ico" />
     <Content Include="lib\TiledSharp.dll" />
   </ItemGroup>
@@ -98,9 +126,15 @@
     <Folder Include="Content\Fonts\" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="Content\Music\Confirm.ogg" />
+    <None Include="Content\Music\Decline.ogg" />
+    <None Include="Content\Music\Endless Stars.ogg" />
+    <None Include="Content\Music\Move.ogg" />
+    <None Include="Content\Music\Orbiting the Beginning.ogg" />
     <None Include="Engine\World\Levels\testmap.tmx">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
+    <None Include="packages.config" />
   </ItemGroup>
   <!-- Specify the search path explicitly so the ResolveAssemblyReferences task picks the right ones -->
   <Target Name="BeforeResolveReferences">

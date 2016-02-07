@@ -173,7 +173,7 @@ namespace TwoDECS
 
 
             //update player ai
-            AISystem.UpdateEnemeyAI(playingState, gameTime, levelRenderer.TileMap.Map);
+            AISystem.UpdateEnemeyAI(playingState, gameTime, levelCollisionDetection, levelRenderer.TileMap.TileSize);
 
             //update projectiles
             ProjectileSystem.UpdateProjectiles(playingState);
@@ -205,6 +205,9 @@ namespace TwoDECS
 
 
             DisplaySystem.DrawEnemyLabelComponents(playingState, spriteBatch, spriteFont);
+
+            //DisplaySystem.DrawEnemyActivePath(playingState, spriteBatch, spriteSheet, graphics.GraphicsDevice);
+            //DisplaySystem.DrawDebugTiles(playingState, spriteBatch, spriteSheet, graphics.GraphicsDevice);
             //DisplaySystem.DrawAABBComponents(playingState, spriteBatch, graphics.GraphicsDevice);
 
 

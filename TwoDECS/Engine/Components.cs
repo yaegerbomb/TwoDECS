@@ -28,7 +28,8 @@ namespace TwoDECS.Engine
         COMPONENT_ACCELERATION = 1 << 14,
         COMPONENT_BLOCK = 1 << 15,
         COMPONENT_DEBUG = 1 << 16,
-        COMPONENT_LABEL = 1 << 17
+        COMPONENT_LABEL = 1 << 17,
+        COMPONENT_MAPOBJECCT = 1 << 18
     }
 
     public struct ComponentMasks
@@ -46,7 +47,7 @@ namespace TwoDECS.Engine
         public const Component Projectile = Component.COMPONENT_DIRECTION | Component.COMPONENT_DISPLAY | Component.COMPONENT_POSITION | Component.COMPONENT_VELOCITY | Component.COMPONENT_AABB | Component.COMPONENT_ACTIVE | Component.COMPONENT_OWNER | Component.COMPONENT_DAMAGE;
         public const Component Weapon = Component.COMPONENT_DIRECTION | Component.COMPONENT_DISPLAY | Component.COMPONENT_POSITION | Component.COMPONENT_TIMER | Component.COMPONENT_CONTAINER | Component.COMPONENT_AABB | Component.COMPONENT_MOUSEINPUT | Component.COMPONENT_ACTIVE | Component.COMPONENT_OWNER | Component.COMPONENT_DAMAGE;
 
-        public const Component LevelObjects = Component.COMPONENT_DISPLAY | Component.COMPONENT_POSITION | Component.COMPONENT_AABB | Component.COMPONENT_BLOCK;
+        public const Component LevelObjects = Component.COMPONENT_DISPLAY | Component.COMPONENT_POSITION | Component.COMPONENT_AABB | Component.COMPONENT_BLOCK | Component.COMPONENT_MAPOBJECCT;
 
         public const Component Drawable = Component.COMPONENT_DIRECTION | Component.COMPONENT_DISPLAY | Component.COMPONENT_POSITION;
     }
@@ -67,6 +68,8 @@ namespace TwoDECS.Engine
         public Dictionary<Guid, AIComponent> AIComponents { get; set; }
         public Dictionary<Guid, LabelComponent> LabelComponents { get; set; }
         public Dictionary<Guid, AABBComponent> AABBComponents { get; set; }
+        public Dictionary<Guid, DebugComponent> DebugComponents { get; set; }
+        public Dictionary<Guid, MapObjectComponent> MapObjectComponents { get; set; }
 
         public PlayingState()
         {
@@ -84,6 +87,8 @@ namespace TwoDECS.Engine
             AIComponents = new Dictionary<Guid, AIComponent>();
             LabelComponents = new Dictionary<Guid, LabelComponent>();
             AABBComponents = new Dictionary<Guid, AABBComponent>();
+            DebugComponents = new Dictionary<Guid, DebugComponent>();
+            MapObjectComponents = new Dictionary<Guid, MapObjectComponent>();
         }        
 
         public Guid CreateEntity()

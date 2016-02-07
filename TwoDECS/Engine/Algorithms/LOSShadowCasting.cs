@@ -10,10 +10,90 @@ using TwoDECS.Engine.World;
 
 namespace TwoDECS.Engine.Algorithms
 {
-        
+
+    public struct Line
+    {
+        public int XMin;
+        public int XMax;
+
+        public int YMin;
+        public int YMax;
+
+        public Line(Point a, Point b) {
+            XMin = Math.Min(a.X, b.X);
+            XMax = Math.Max(a.X, b.X);
+            YMin = Math.Min(a.Y, b.Y);
+            YMax = Math.Max(a.Y, b.Y);
+        }
+
+        public float CalculateYForX(int x) 
+        {  
+            //y = mx + b
+            if (this.XMax - this.XMin == 0)
+            {
+                return 0;
+            }
+            var m = (this.YMax - this.YMax) / (this.XMax - this.XMin);
+            return m * x;
+        }
+    }
+
     public static class LineOfSiteRayCast
     {
-        public static bool CalculateLineOfSight(Vector2 position, Vector2 positionToCheck, float lineOfSite, float direction, PlayingState playingState, Tile[,] tiles)
+        //return true if we can get from one point to the other in a straight line without running into anything
+        public static bool LineOfSight(Vector2 startPosition, Vector2 endPosition, PlayingState playingState)
+        {
+            IEnumerable<Guid> levelObjectEntities = playingState.Entities.Where(x => (x.ComponentFlags & ComponentMasks.LevelObjects) == ComponentMasks.LevelObjects).Select(x => x.ID);
+
+            foreach (Guid loid in levelObjectEntities)
+            {
+                if (LineIntersectsRect(startPosition.ToPoint(), endPosition.ToPoint(), playingState.AABBComponents[loid].BoundedBox))
+                {
+                    return false;
+                }
+
+            }
+
+            return true;
+
+        }
+
+
+
+        public static bool LineIntersectsRect(Point p1, Point p2, Rectangle r)
+        {
+            return LineIntersectsLine(p1, p2, new Point(r.X, r.Y), new Point(r.X + r.Width, r.Y)) ||
+                   LineIntersectsLine(p1, p2, new Point(r.X + r.Width, r.Y), new Point(r.X + r.Width, r.Y + r.Height)) ||
+                   LineIntersectsLine(p1, p2, new Point(r.X + r.Width, r.Y + r.Height), new Point(r.X, r.Y + r.Height)) ||
+                   LineIntersectsLine(p1, p2, new Point(r.X, r.Y + r.Height), new Point(r.X, r.Y)) ||
+                   (r.Contains(p1) && r.Contains(p2));
+        }
+
+        private static bool LineIntersectsLine(Point l1p1, Point l1p2, Point l2p1, Point l2p2)
+        {
+            float q = (l1p1.Y - l2p1.Y) * (l2p2.X - l2p1.X) - (l1p1.X - l2p1.X) * (l2p2.Y - l2p1.Y);
+            float d = (l1p2.X - l1p1.X) * (l2p2.Y - l2p1.Y) - (l1p2.Y - l1p1.Y) * (l2p2.X - l2p1.X);
+
+            if (d == 0)
+            {
+                return false;
+            }
+
+            float r = q / d;
+
+            q = (l1p1.Y - l2p1.Y) * (l1p2.X - l1p1.X) - (l1p1.X - l2p1.X) * (l1p2.Y - l1p1.Y);
+            float s = q / d;
+
+            if (r < 0 || r > 1 || s < 0 || s > 1)
+            {
+                return false;
+            }
+
+            return true;
+        }
+
+
+        public static bool CalculateLineOfSight(Vector2 position, Vector2 positionToCheck, float lineOfSite, float direction, PlayingState playingState)
         {            
             var degree = direction * (180 / Math.PI);
             var lowerDegree = degree - 45;

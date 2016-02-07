@@ -23,6 +23,29 @@ namespace TwoDECS.Engine.Systems
             }
         }
 
+        public static void DrawEnemyActivePath(PlayingState playingState, SpriteBatch spriteBatch, Texture2D spriteSheet, GraphicsDevice graphicsDevice)
+        {
+            Texture2D rect = new Texture2D(graphicsDevice, 80, 30);
+
+            Color[] data = new Color[80 * 30];
+            for (int i = 0; i < data.Length; ++i) data[i] = Color.Violet;
+            rect.SetData(data);
+
+            IEnumerable<Guid> enemies = playingState.Entities.Where(x => (x.ComponentFlags & ComponentMasks.Enemy) == ComponentMasks.Enemy).Select(x => x.ID);
+            foreach (Guid enemyid in enemies)
+            {
+                AIComponent aiComponent = playingState.AIComponents[enemyid];
+                if (aiComponent.ActivePath != null)
+                {
+                    foreach (var path in aiComponent.ActivePath)
+                    {
+                        Rectangle activePathTile = new Rectangle((int)(path.TilePosition.X), (int)(path.TilePosition.Y), 16, 16);
+                        spriteBatch.Draw(rect, activePathTile, Color.White);
+                    }
+                }
+            }
+        }
+
         public static void DrawEnemyNeighbors(PlayingState playingState, SpriteBatch spriteBatch, Texture2D spriteSheet, GraphicsDevice graphicsDevice)
         {
             Texture2D rect = new Texture2D(graphicsDevice, 80, 30);
@@ -35,9 +58,25 @@ namespace TwoDECS.Engine.Systems
             foreach (Guid enemyid in enemies)
             {
                 var position = playingState.PositionComponents[enemyid].Position;
-                var lineOfSite = playingState.AIComponents[enemyid].LineOfSite;
+                var lineOfSite = playingState.AIComponents[enemyid].LineOfSight;
                 Rectangle neighborBoundedBox = new Rectangle((int)(position.X - (lineOfSite)), (int)(position.Y - (lineOfSite)), lineOfSite * 2, lineOfSite * 2);
                 spriteBatch.Draw(rect, neighborBoundedBox, Color.White);
+            }
+        }
+
+        public static void DrawDebugTiles(PlayingState playingState, SpriteBatch spriteBatch, Texture2D spriteSheet, GraphicsDevice graphicsDevice)
+        {
+            Texture2D rect = new Texture2D(graphicsDevice, 80, 30);
+
+            Color[] data = new Color[80 * 30];
+            for (int i = 0; i < data.Length; ++i) data[i] = Color.DarkRed;
+            rect.SetData(data);
+
+            var debugPaths = playingState.DebugComponents.ToList().Select(d => d.Value.Position);
+            foreach (var path in debugPaths)
+            {
+                Rectangle neighborBoundedBox = new Rectangle((int)(path.X), (int)(path.Y), 16, 16);
+                spriteBatch.Draw(rect, neighborBoundedBox, Color.DarkRed);
             }
         }
 

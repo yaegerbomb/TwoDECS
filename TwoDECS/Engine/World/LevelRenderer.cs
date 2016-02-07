@@ -9,6 +9,7 @@ using System.Text;
 using TwoDECS.Engine.Cameras;
 using TwoDECS.Engine.Components;
 using TiledSharp;
+using TwoDECS.Engine.Systems.AI;
 
 namespace TwoDECS.Engine.World
 {
@@ -106,6 +107,7 @@ namespace TwoDECS.Engine.World
                 playingState.DisplayComponents[id] = new DisplayComponent() { Source = new Rectangle(342, 108, TileMap.TileSize, TileMap.TileSize) };
                 playingState.PositionComponents[id] = new PositionComponent() { Position = position };
                 playingState.AABBComponents[id] = new AABBComponent() { BoundedBox = boundedBox };
+                playingState.MapObjectComponents[id] = new MapObjectComponent() { Type = MapObjectType.Wall };
             }
         }
 
@@ -122,6 +124,7 @@ namespace TwoDECS.Engine.World
                 playingState.PositionComponents[id] = new PositionComponent() { Position = new Vector2((float)playerspawn.X, (float)playerspawn.Y) };
                 playingState.VelocityComponents[id] = new VelocityComponent() { xVelocity = 0f, yVelocity = 0f, xTerminalVelocity = 6f, yTerminalVelocity = 6f };
                 playingState.AccelerationComponents[id] = new AccelerationComponent() { xAcceleration = 6f, yAcceleration = 6f };
+
                 //our origin is going to offset our bounded box
                 playingState.AABBComponents[id] = new AABBComponent(){ BoundedBox = new Rectangle((int)playerspawn.X - (TileMap.TileSize / 2), (int)playerspawn.Y - (TileMap.TileSize / 2), TileMap.TileSize, TileMap.TileSize)};
             }
@@ -129,6 +132,7 @@ namespace TwoDECS.Engine.World
 
         public void CreateEnemySpawns(TmxList<TmxObject> enemySpawns, PlayingState playingState)
         {
+            LevelCollisionDetection levelCollisionDetection = new LevelCollisionDetection(TileMap, TileMap.TileSize);
             foreach (TmxObject enemypawn in enemySpawns)
             {
                 Guid id = playingState.CreateEntity();
@@ -140,6 +144,12 @@ namespace TwoDECS.Engine.World
                 playingState.PositionComponents[id] = new PositionComponent() { Position = new Vector2((float)enemypawn.X + (TileMap.TileSize / 2), (float)enemypawn.Y + (TileMap.TileSize / 2)) };
                 playingState.VelocityComponents[id] = new VelocityComponent() { xVelocity = 0f, yVelocity = 0f, xTerminalVelocity = 3f, yTerminalVelocity = 3f };
                 playingState.AccelerationComponents[id] = new AccelerationComponent() { xAcceleration = 3f, yAcceleration = 3f };
+                playingState.DamageComponents[id] = new DamageComponent()
+                {
+                    AttackRange = 1 * TileMap.TileSize,
+                    Damage = 5
+                };
+
                 //our origin is going to offset our bounded box
                 playingState.AABBComponents[id] = new AABBComponent() { BoundedBox = new Rectangle((int)enemypawn.X, (int)enemypawn.Y, TileMap.TileSize, TileMap.TileSize) };
 
@@ -156,6 +166,11 @@ namespace TwoDECS.Engine.World
                         newPaths[i] = newPaths[i].Replace(")", "");
                         int x = Int32.Parse(newPaths[i].Split(',')[0]);
                         int y = Int32.Parse(newPaths[i].Split(',')[1]);
+
+                        //center our points too
+                        x = (x * TileMap.TileSize) + (TileMap.TileSize / 2);
+                        y = (y * TileMap.TileSize) + (TileMap.TileSize / 2);
+
                         PatrolVectors.Add(new Vector2(x, y));
                     }
                 }
@@ -163,10 +178,11 @@ namespace TwoDECS.Engine.World
                 playingState.AIComponents[id] = new AIComponent()
                 {
                     ActiveState = new Stack<AIState>(),
-                    LineOfSite = 6 * TileMap.TileSize,
+                    LineOfSight = 6 * TileMap.TileSize,
                     PatrolPath = PatrolVectors,
                     ActivePath = new LinkedList<Tile>(),
-                    Astar = TileMap.aStar
+                    Astar = TileMap.aStar,
+                    AITree = AIPawnSystem.CreatePawnTree(id, playingState, levelCollisionDetection, TileMap.TileSize, TileMap.TileSize)
                 };
                 playingState.AIComponents[id].ActiveState.Push(AIState.STILL);
                 playingState.LabelComponents[id] = new LabelComponent() { Label = "", Position = new Vector2((float)enemypawn.X, (float)(enemypawn.Y - 5)) };
@@ -203,31 +219,13 @@ namespace TwoDECS.Engine.World
             CreateEnemySpawns(enemySpawns, playingState);
 
             this.Font = font;
-        }
-      
+        }      
 
         public void Update()
         {
 
         }
-
-        //public void Draw(SpriteBatch spriteBatch, Texture2D spriteSheet, FreeRangeCamera camera)
-        //{
-        //    //clip our x and y bounds to camera view
-        //    //Point minPoints = camera.GetRenderRangeMin(TileMap.TileSize, TileMap.RowCount);
-        //    //Point maxPoints = camera.GetRenderRangeMax(TileMap.TileSize, TileMap.RowCount, minPoints);
-        //    for (int i = 0; i < TileMap.RowCount; i++)
-        //    {
-        //        for (int j = 0; j < TileMap.ColumnCount; j++)
-        //        {
-        //            camera.IsInView(TileMap.Map[i, j].TilePosition, 48);
-        //            spriteBatch.Draw(spriteSheet, TileMap.Map[i, j].TilePosition, TileMap.Map[i, j].Source, Color.White);
-        //            //spriteBatch.DrawString(Font, "(" + i + "," + j + ")", TileMap.Map[i, j].TilePosition, Color.White);
-        //            //spriteBatch.DrawString(Font, "(" + TileMap.Map[i, j].TilePosition.X + "," + TileMap.Map[i, j].TilePosition.Y + ")", new Vector2(TileMap.Map[i, j].TilePosition.X, TileMap.Map[i, j].TilePosition.Y + 16), Color.White);
-        //        }
-        //    }
-        //}
-
+        
         public void Draw(SpriteBatch spriteBatch, Texture2D spriteSheet, FollowCamera camera)
         {
             for (int i = 0; i < TileMap.RowCount; i++)
